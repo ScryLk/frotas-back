@@ -1,0 +1,108 @@
+from rest_framework import serializers
+from .models import Secretaria, Carro, Viagem
+from django.db.models import Max
+
+
+class SecretariaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Secretaria
+        fields = ['id', 'nome', 'responsavel', 'criado_em', 'atualizado_em']
+        read_only_fields = ['id', 'criado_em', 'atualizado_em']
+
+
+class CarroSerializer(serializers.ModelSerializer):
+    odometro_atual = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Carro
+        fields = ['placa', 'modelo', 'secretaria', 'ano', 'ativo', 'odometro_atual', 'criado_em', 'atualizado_em']
+        read_only_fields = ['criado_em', 'atualizado_em', 'odometro_atual']
+
+
+class ViagemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Viagem
+        fields = [
+            'id', 'secretaria', 'carro', 'motorista',
+            'data_saida', 'odometro_saida',
+            'data_chegada', 'odometro_chegada',
+            'destino', 'observacoes',
+            'criado_em', 'atualizado_em'
+        ]
+        read_only_fields = ['id', 'criado_em', 'atualizado_em']
+
+    def validate(self, attrs):
+        data_saida = attrs.get('data_saida', getattr(self.instance, 'data_saida', None))
+        data_chegada = attrs.get('data_chegada', getattr(self.instance, 'data_chegada', None))
+        odo_s = attrs.get('odometro_saida', getattr(self.instance, 'odometro_saida', None))
+        odo_c = attrs.get('odometro_chegada', getattr(self.instance, 'odometro_chegada', None))
+        carro = attrs.get('carro', getattr(self.instance, 'carro', None))
+
+        # validação de datas
+        if data_chegada and data_saida and data_chegada < data_saida:
+            raise serializers.ValidationError({'data_chegada': 'Deve ser maior ou igual à data de saída.'})
+
+        # baseline de odômetro pelo histórico do carro
+        if carro is not None:
+            qs = Viagem.objects.filter(carro=carro)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            agg = qs.aggregate(max_saida=Max('odometro_saida'), max_chegada=Max('odometro_chegada'))
+            historico_max = max(agg.get('max_saida') or 0, agg.get('max_chegada') or 0)
+            baseline = max(historico_max, getattr(carro, 'odometro_atual', 0) or 0)
+        else:
+            baseline = 0
+
+        errors = {}
+
+        # validação de odômetros
+        if odo_s is not None and odo_s < baseline:
+            errors['odometro_saida'] = [f'Deve ser maior ou igual ao último odômetro registrado do carro ({baseline}).']
+
+        if odo_c is not None:
+            # já há verificação geral abaixo, mas reforçamos baseline também para chegada
+            if odo_s is None:
+                # considerar odometro_saida atual da instância para PATCH parcial
+                ref_saida = getattr(self.instance, 'odometro_saida', None)
+            else:
+                ref_saida = odo_s
+            if ref_saida is not None and odo_c < ref_saida:
+                errors['odometro_chegada'] = ['Deve ser maior ou igual ao odômetro de saída.']
+            if odo_c < baseline:
+                errors.setdefault('odometro_chegada', []).append(f'Deve ser maior ou igual ao último odômetro registrado do carro ({baseline}).')
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+# Envelopes para documentação e padronização de respostas
+class SecretariaResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = SecretariaSerializer()
+
+
+class SecretariaListResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = SecretariaSerializer(many=True)
+
+
+class CarroResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = CarroSerializer()
+
+
+class CarroListResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = CarroSerializer(many=True)
+
+
+class ViagemResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagemSerializer()
+
+
+class ViagemListResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagemSerializer(many=True)

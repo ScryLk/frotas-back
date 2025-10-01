@@ -1,0 +1,623 @@
+{
+  "info": {
+    "_postman_id": "4f2b8e7d-3a3f-4d34-9d15-4a2a7e9f1b0d",
+    "name": "Frotas API (atualizada pelo Swagger)",
+    "description": "API REST para gestão de frotas. Autenticação via JWT e respostas JSON com envelope de status.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "bearerToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "api",
+      "item": [
+        {
+          "name": "auth",
+          "item": [
+            {
+              "name": "Login (usuário e senha)",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"lucas\",\n  \"password\": \"senha\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login", ""]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "originalRequest": {},
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"access\": \"<jwt>\",\n    \"refresh\": \"<jwt>\",\n    \"user\": {\n      \"id\": 1,\n      \"username\": \"lucas\"\n    }\n  }\n}"
+                },
+                {
+                  "name": "400 Bad Request",
+                  "originalRequest": {},
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"status\": \"error\",\n  \"message\": \"Dados inválidos\",\n  \"errors\": {\n    \"username\": [\"Este campo é obrigatório.\"]\n  }\n}"
+                },
+                {
+                  "name": "401 Unauthorized",
+                  "originalRequest": {},
+                  "status": "Unauthorized",
+                  "code": 401,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"status\": \"error\",\n  \"message\": \"Credenciais inválidas\",\n  \"errors\": {\n    \"non_field_errors\": [\"Credenciais inválidas\"]\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Obter tokens JWT",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"lucas\",\n  \"password\": \"senha\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/token/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "token", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Renovar token de acesso",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refresh\": \"<refresh>\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/token/refresh/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "token", "refresh", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Cadastro de usuário",
+              "request": {
+                "auth": { "type": "noauth" },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"lucas\",\n  \"password\": \"SenhaForte123\",\n  \"password2\": \"SenhaForte123\",\n  \"email\": \"lucas@example.com\",\n  \"first_name\": \"Lucas\",\n  \"last_name\": \"Kepler\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/register/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "register", ""]
+                }
+              },
+              "response": [
+                {
+                  "name": "201 Created",
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 2,\n    \"username\": \"lucas\",\n    \"email\": \"lucas@example.com\"\n  }\n}"
+                },
+                {
+                  "name": "400 Bad Request",
+                  "status": "Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "header": [],
+                  "body": "{\n  \"status\": \"error\",\n  \"message\": \"Dados inválidos\",\n  \"errors\": {\n    \"username\": [\"Username já em uso.\"]\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Dados do usuário autenticado",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "GET",
+                "header": [ { "key": "Accept", "value": "application/json" } ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me", ""]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "secretarias",
+          "item": [
+            {
+              "name": "Listar todas secretarias",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "GET",
+                "header": [ { "key": "Accept", "value": "application/json" } ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/secretarias/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "secretarias", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Criar Secretaria",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nome\": \"Secretaria de Saúde\",\n  \"responsavel\": \"Fulano de Tal\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/secretarias/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "secretarias", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Secretaria por id",
+              "item": [
+                {
+                  "name": "Detalhar",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "GET",
+                    "header": [ { "key": "Accept", "value": "application/json" } ],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/secretarias/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "secretarias", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid>" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Atualização Completa",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "PUT",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Accept", "value": "application/json" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"nome\": \"Secretaria Atualizada\",\n  \"responsavel\": \"Novo Responsável\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/secretarias/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "secretarias", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid>" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Atualização Parcial",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "PATCH",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Accept", "value": "application/json" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"responsavel\": \"Outro Nome\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/secretarias/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "secretarias", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid>" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Excluir",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/secretarias/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "secretarias", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid>" } ]
+                    }
+                  },
+                  "response": [
+                    {
+                      "name": "200 OK",
+                      "code": 200,
+                      "_postman_previewlanguage": "json",
+                      "body": "{\n  \"status\": \"success\",\n  \"data\": null\n}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "carros",
+          "item": [
+            {
+              "name": "Listar todos os carros",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "GET",
+                "header": [ { "key": "Accept", "value": "application/json" } ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/carros/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "carros", ""]
+                }
+              },
+              "response": [
+                {
+                  "name": "200 OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"placa\": \"ABC1D23\",\n      \"modelo\": \"Onix LT\",\n      \"secretaria\": \"<uuid>\",\n      \"ano\": 2020,\n      \"ativo\": true,\n      \"odometro_atual\": 1200\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Criar Carro",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"placa\": \"ABC1D23\",\n  \"modelo\": \"Onix LT\",\n  \"secretaria\": \"<uuid_secretaria>\",\n  \"ano\": 2020,\n  \"ativo\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/carros/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "carros", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Carro por placa",
+              "item": [
+                {
+                  "name": "Detalhar",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "GET",
+                    "header": [ { "key": "Accept", "value": "application/json" } ],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/carros/:placa/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "carros", ":placa", ""],
+                      "variable": [ { "key": "placa", "value": "ABC1D23" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Atualização Completa",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "PUT",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Accept", "value": "application/json" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"modelo\": \"Onix LTZ\",\n  \"secretaria\": \"<uuid_secretaria>\",\n  \"ano\": 2021,\n  \"ativo\": true\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/carros/:placa/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "carros", ":placa", ""],
+                      "variable": [ { "key": "placa", "value": "ABC1D23" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Atualização Parcial",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "PATCH",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Accept", "value": "application/json" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"ativo\": false\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/carros/:placa/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "carros", ":placa", ""],
+                      "variable": [ { "key": "placa", "value": "ABC1D23" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Excluir",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/carros/:placa/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "carros", ":placa", ""],
+                      "variable": [ { "key": "placa", "value": "ABC1D23" } ]
+                    }
+                  },
+                  "response": [
+                    {
+                      "name": "200 OK",
+                      "code": 200,
+                      "_postman_previewlanguage": "json",
+                      "body": "{\n  \"status\": \"success\",\n  \"data\": null\n}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "viagens",
+          "item": [
+            {
+              "name": "Listar todas as viagens",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "GET",
+                "header": [ { "key": "Accept", "value": "application/json" } ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/viagens/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "viagens", ""]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Criar Viagem",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                },
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "Accept", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"secretaria\": \"<uuid_secretaria>\",\n  \"carro\": \"ABC1D23\",\n  \"motorista\": \"<uuid_motorista>\",\n  \"data_saida\": \"2025-10-01T10:00:00Z\",\n  \"odometro_saida\": 1000,\n  \"data_chegada\": null,\n  \"odometro_chegada\": null,\n  \"destino\": \"Centro Administrativo\",\n  \"observacoes\": \"Reunião\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/viagens/",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "viagens", ""]
+                }
+              },
+              "response": [
+                {
+                  "name": "400 Bad Request",
+                  "code": 400,
+                  "_postman_previewlanguage": "json",
+                  "body": "{\n  \"status\": \"error\",\n  \"message\": \"Dados inválidos\",\n  \"errors\": {\n    \"odometro_saida\": [\"Deve ser maior ou igual ao último odômetro registrado do carro (1200).\"]\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Viagem por id",
+              "item": [
+                {
+                  "name": "Detalhar",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "GET",
+                    "header": [ { "key": "Accept", "value": "application/json" } ],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/viagens/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "viagens", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid_viagem>" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Atualização Completa",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "PUT",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Accept", "value": "application/json" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"secretaria\": \"<uuid_secretaria>\",\n  \"carro\": \"ABC1D23\",\n  \"motorista\": \"<uuid_motorista>\",\n  \"data_saida\": \"2025-10-01T10:00:00Z\",\n  \"odometro_saida\": 1000,\n  \"data_chegada\": \"2025-10-01T18:00:00Z\",\n  \"odometro_chegada\": 1200,\n  \"destino\": \"Centro Administrativo\",\n  \"observacoes\": \"Retorno\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/viagens/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "viagens", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid_viagem>" } ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Atualização Parcial",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "PATCH",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Accept", "value": "application/json" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"data_chegada\": \"2025-10-01T18:00:00Z\",\n  \"odometro_chegada\": 1200\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/viagens/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "viagens", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid_viagem>" } ]
+                    }
+                  },
+                  "response": [
+                    {
+                      "name": "400 Bad Request",
+                      "code": 400,
+                      "_postman_previewlanguage": "json",
+                      "body": "{\n  \"status\": \"error\",\n  \"message\": \"Dados inválidos\",\n  \"errors\": {\n    \"odometro_chegada\": [\"Deve ser maior ou igual ao odômetro de saída.\", \"Deve ser maior ou igual ao último odômetro registrado do carro (1200).\"]\n  }\n}"
+                    }
+                  ]
+                },
+                {
+                  "name": "Excluir",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [ { "key": "token", "value": "{{bearerToken}}", "type": "string" } ]
+                    },
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/viagens/:id/",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "viagens", ":id", ""],
+                      "variable": [ { "key": "id", "value": "<uuid_viagem>" } ]
+                    }
+                  },
+                  "response": [
+                    {
+                      "name": "200 OK",
+                      "code": 200,
+                      "_postman_previewlanguage": "json",
+                      "body": "{\n  \"status\": \"success\",\n  \"data\": null\n}"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

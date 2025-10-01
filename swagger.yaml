@@ -1,0 +1,1369 @@
+openapi: 3.0.3
+info:
+  title: Frotas API
+  version: 1.0.0
+  description: API REST para gestão de frotas. Autenticação via JWT e respostas JSON
+    com envelope de status.
+paths:
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      summary: Login (usuário e senha)
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPairResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Erro de validação
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Credenciais inválidas
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      summary: Dados do usuário autenticado
+      tags:
+      - Auth
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+              examples:
+                Sucesso:
+                  value:
+                    status: success
+                    data:
+                      id: uuid
+                      username: jdoe
+                      email: jdoe@example.com
+                      first_name: John
+                      last_name: Doe
+          description: ''
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create
+      summary: Cadastro de usuário
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Registration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Registration'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Erro de validação
+  /api/auth/token/:
+    post:
+      operationId: auth_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      summary: Obter tokens JWT
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenObtainPair'
+        required: true
+      security:
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPairResponse'
+          description: ''
+  /api/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      summary: Renovar token de acesso
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomTokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomTokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomTokenRefresh'
+        required: true
+      security:
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+          description: ''
+  /api/carros/:
+    get:
+      operationId: carros_list
+      tags:
+      - Carros
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarroListResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+    post:
+      operationId: carros_create
+      tags:
+      - Carros
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Carro'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Carro'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Carro'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarroResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+  /api/carros/{placa}/:
+    get:
+      operationId: carros_retrieve
+      parameters:
+      - in: path
+        name: placa
+        schema:
+          type: string
+        description: Um valor único que identifica este Carro.
+        required: true
+      tags:
+      - Carros
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarroResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    put:
+      operationId: carros_update
+      parameters:
+      - in: path
+        name: placa
+        schema:
+          type: string
+        description: Um valor único que identifica este Carro.
+        required: true
+      tags:
+      - Carros
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Carro'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Carro'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Carro'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarroResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    patch:
+      operationId: carros_partial_update
+      parameters:
+      - in: path
+        name: placa
+        schema:
+          type: string
+        description: Um valor único que identifica este Carro.
+        required: true
+      tags:
+      - Carros
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCarro'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCarro'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCarro'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarroResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    delete:
+      operationId: carros_destroy
+      parameters:
+      - in: path
+        name: placa
+        schema:
+          type: string
+        description: Um valor único que identifica este Carro.
+        required: true
+      tags:
+      - Carros
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+  /api/secretarias/:
+    get:
+      operationId: secretarias_list
+      tags:
+      - Secretarias
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretariaListResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+    post:
+      operationId: secretarias_create
+      tags:
+      - Secretarias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Secretaria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Secretaria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Secretaria'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretariaResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+  /api/secretarias/{id}/:
+    get:
+      operationId: secretarias_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Secretaria.
+        required: true
+      tags:
+      - Secretarias
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretariaResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    put:
+      operationId: secretarias_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Secretaria.
+        required: true
+      tags:
+      - Secretarias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Secretaria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Secretaria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Secretaria'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretariaResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    patch:
+      operationId: secretarias_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Secretaria.
+        required: true
+      tags:
+      - Secretarias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSecretaria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSecretaria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSecretaria'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretariaResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    delete:
+      operationId: secretarias_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Secretaria.
+        required: true
+      tags:
+      - Secretarias
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+  /api/viagens/:
+    get:
+      operationId: viagens_list
+      tags:
+      - Viagens
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViagemListResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+    post:
+      operationId: viagens_create
+      tags:
+      - Viagens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Viagem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Viagem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Viagem'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViagemResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Erros de validação de datas/odômetros
+  /api/viagens/{id}/:
+    get:
+      operationId: viagens_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Viagem.
+        required: true
+      tags:
+      - Viagens
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViagemResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+    put:
+      operationId: viagens_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Viagem.
+        required: true
+      tags:
+      - Viagens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Viagem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Viagem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Viagem'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViagemResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Erros de validação de datas/odômetros
+    patch:
+      operationId: viagens_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Viagem.
+        required: true
+      tags:
+      - Viagens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedViagem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedViagem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedViagem'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ViagemResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Erros de validação de datas/odômetros
+    delete:
+      operationId: viagens_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: Um string UUID que identifica este Viagem.
+        required: true
+      tags:
+      - Viagens
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não autenticado
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Proibido
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Não encontrado
+components:
+  schemas:
+    Carro:
+      type: object
+      properties:
+        placa:
+          type: string
+          maxLength: 10
+        modelo:
+          type: string
+          maxLength: 120
+        secretaria:
+          type: string
+          format: uuid
+        ano:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+          nullable: true
+        ativo:
+          type: boolean
+        odometro_atual:
+          type: integer
+          readOnly: true
+        criado_em:
+          type: string
+          format: date-time
+          readOnly: true
+        atualizado_em:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - atualizado_em
+      - criado_em
+      - modelo
+      - placa
+      - secretaria
+    CarroListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Carro'
+      required:
+      - data
+      - status
+    CarroResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/Carro'
+      required:
+      - data
+      - status
+    CustomTokenObtainPair:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - username
+    CustomTokenRefresh:
+      type: object
+      properties:
+        refresh:
+          type: string
+        access:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    EmptySuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          nullable: true
+          type: string
+          example: null
+      required:
+      - status
+      - data
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        message:
+          type: string
+          example: Dados inválidos
+        errors:
+          type: object
+          nullable: true
+      required:
+      - status
+      - message
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - username
+    MeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/UserPublic'
+      required:
+      - data
+      - status
+    PatchedCarro:
+      type: object
+      properties:
+        placa:
+          type: string
+          maxLength: 10
+        modelo:
+          type: string
+          maxLength: 120
+        secretaria:
+          type: string
+          format: uuid
+        ano:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+          nullable: true
+        ativo:
+          type: boolean
+        criado_em:
+          type: string
+          format: date-time
+          readOnly: true
+        atualizado_em:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedSecretaria:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 120
+        responsavel:
+          type: string
+          nullable: true
+          maxLength: 120
+        criado_em:
+          type: string
+          format: date-time
+          readOnly: true
+        atualizado_em:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedViagem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        secretaria:
+          type: string
+          format: uuid
+        carro:
+          type: string
+        motorista:
+          type: string
+          format: uuid
+        data_saida:
+          type: string
+          format: date-time
+        odometro_saida:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        data_chegada:
+          type: string
+          format: date-time
+          nullable: true
+        odometro_chegada:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+          nullable: true
+        destino:
+          type: string
+          maxLength: 160
+        observacoes:
+          type: string
+          nullable: true
+        criado_em:
+          type: string
+          format: date-time
+          readOnly: true
+        atualizado_em:
+          type: string
+          format: date-time
+          readOnly: true
+    RegisterResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/UserPublic'
+      required:
+      - data
+      - status
+    Registration:
+      type: object
+      properties:
+        username:
+          type: string
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 10
+        password2:
+          type: string
+          writeOnly: true
+        email:
+          type: string
+          format: email
+          title: Endereço de email
+          maxLength: 254
+        first_name:
+          type: string
+          title: Primeiro nome
+          maxLength: 150
+        last_name:
+          type: string
+          title: Último nome
+          maxLength: 150
+      required:
+      - password
+      - password2
+      - username
+    Secretaria:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 120
+        responsavel:
+          type: string
+          nullable: true
+          maxLength: 120
+        criado_em:
+          type: string
+          format: date-time
+          readOnly: true
+        atualizado_em:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - atualizado_em
+      - criado_em
+      - id
+      - nome
+    SecretariaListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Secretaria'
+      required:
+      - data
+      - status
+    SecretariaResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/Secretaria'
+      required:
+      - data
+      - status
+    TokenObtainPairResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/TokenPairData'
+      required:
+      - data
+      - status
+    TokenPairData:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserPublic'
+      required:
+      - access
+      - refresh
+      - user
+    TokenRefreshData:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
+    TokenRefreshResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/TokenRefreshData'
+      required:
+      - data
+      - status
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          readOnly: true
+          title: Usuário
+          description: Obrigatório. 150 caracteres ou menos. Letras, números e @/./+/-/_
+            apenas.
+        email:
+          type: string
+          format: email
+          readOnly: true
+          title: Endereço de email
+        first_name:
+          type: string
+          readOnly: true
+          title: Primeiro nome
+        last_name:
+          type: string
+          readOnly: true
+          title: Último nome
+      required:
+      - email
+      - first_name
+      - id
+      - last_name
+      - username
+    Viagem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        secretaria:
+          type: string
+          format: uuid
+        carro:
+          type: string
+        motorista:
+          type: string
+          format: uuid
+        data_saida:
+          type: string
+          format: date-time
+        odometro_saida:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+        data_chegada:
+          type: string
+          format: date-time
+          nullable: true
+        odometro_chegada:
+          type: integer
+          maximum: 4294967295
+          minimum: 0
+          format: int64
+          nullable: true
+        destino:
+          type: string
+          maxLength: 160
+        observacoes:
+          type: string
+          nullable: true
+        criado_em:
+          type: string
+          format: date-time
+          readOnly: true
+        atualizado_em:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - atualizado_em
+      - carro
+      - criado_em
+      - data_saida
+      - destino
+      - id
+      - motorista
+      - odometro_saida
+      - secretaria
+    ViagemListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Viagem'
+      required:
+      - data
+      - status
+    ViagemResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        data:
+          $ref: '#/components/schemas/Viagem'
+      required:
+      - data
+      - status
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+- url: http://localhost:8000
+  description: Desenvolvimento

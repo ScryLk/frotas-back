@@ -1,0 +1,8 @@
+Django==5.2.6
+djangorestframework
+djangorestframework-simplejwt
+drf-spectacular
+django-cors-headers
+PyMySQL
+python-dotenv
+gunicorn
