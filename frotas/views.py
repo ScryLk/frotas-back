@@ -14,6 +14,8 @@ from .serializers import (
     ViagemListResponseSerializer,
 )
 from core.serializers import ErrorResponseSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter, SearchFilter
 
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
@@ -69,6 +71,16 @@ class CarroViewSet(viewsets.ModelViewSet):
     queryset = Carro.objects.select_related('secretaria').all().order_by('placa')
     serializer_class = CarroSerializer
     permission_classes = [IsSuperUserOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = {
+        'ativo': ['exact'],
+        'secretaria': ['exact'],
+        'placa': ['exact', 'icontains'],
+        'modelo': ['icontains'],
+        'ano': ['exact', 'gte', 'lte', 'in'],
+    }
+    ordering_fields = ['placa', 'modelo', 'ano', 'criado_em']
+    search_fields = ['placa', 'modelo']
 
     @extend_schema(responses={200: CarroListResponseSerializer, 401: ErrorResponseSerializer})
     def list(self, request, *args, **kwargs):

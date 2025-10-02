@@ -166,6 +166,59 @@ paths:
       operationId: carros_list
       tags:
       - Carros
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: boolean
+        description: Filtra por status de ativação do carro
+      - in: query
+        name: secretaria
+        schema:
+          type: string
+          format: uuid
+        description: Filtra por secretaria
+      - in: query
+        name: placa
+        schema:
+          type: string
+        description: Filtra por placa (igualdade ou contains)
+      - in: query
+        name: modelo
+        schema:
+          type: string
+        description: Filtra por modelo (contains)
+      - in: query
+        name: ano
+        schema:
+          type: integer
+        description: Filtra por ano (igualdade). Para intervalos use ano__gte e ano__lte.
+      - in: query
+        name: ano__gte
+        schema:
+          type: integer
+        description: Filtra por ano maior ou igual
+      - in: query
+        name: ano__lte
+        schema:
+          type: integer
+        description: Filtra por ano menor ou igual
+      - in: query
+        name: ano__in
+        schema:
+          type: string
+        description: Lista de anos separados por vírgula (ex.: 2018,2019,2020)
+      - in: query
+        name: ordering
+        schema:
+          type: string
+          enum: [placa, -placa, modelo, -modelo, criado_em, -criado_em]
+        description: Ordenação
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Busca em placa e modelo
       security:
       - jwtAuth: []
       - BearerAuth: []
@@ -621,7 +674,7 @@ paths:
           description: Não autenticado
         '403':
           content:
-            application/json:
+            application.json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Proibido
@@ -721,7 +774,7 @@ paths:
           description: ''
         '401':
           content:
-            application/json:
+            application.json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Não autenticado
