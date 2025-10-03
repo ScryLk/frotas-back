@@ -30,7 +30,7 @@ class Carro(TimeStampedModel):
     secretaria = models.ForeignKey(Secretaria, on_delete=models.PROTECT, related_name='carros')
     ano = models.PositiveIntegerField(blank=True, null=True)
     ativo = models.BooleanField(default=True)
-    odometro_atual = models.PositiveIntegerField(default=0)
+    odometro_atual = models.PositiveIntegerField(null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = 'Carro'
@@ -84,11 +84,12 @@ class Viagem(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Atualiza odômetro do carro ao salvar viagem
+        # Atualiza odômetro do carro ao salvar viagem (tratando nulos como 0 para baseline)
         try:
             carro = self.carro
             target = self.odometro_chegada or self.odometro_saida
-            if target is not None and target > (carro.odometro_atual or 0):
+            baseline = carro.odometro_atual or 0
+            if target is not None and target > baseline:
                 carro.odometro_atual = target
                 carro.save(update_fields=['odometro_atual', 'atualizado_em'])
         except Exception:

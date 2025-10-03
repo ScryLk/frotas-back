@@ -12,10 +12,14 @@ from .serializers import (
     ViagemSerializer,
     ViagemResponseSerializer,
     ViagemListResponseSerializer,
+    SecretariaViagensCountResponseSerializer,
 )
 from core.serializers import ErrorResponseSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.decorators import action
+from django.db.models import Count
 
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
@@ -65,6 +69,18 @@ class SecretariaViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
 
+    @extend_schema(summary='Contagem de viagens por secretaria', responses={200: SecretariaViagensCountResponseSerializer, 401: ErrorResponseSerializer}, tags=['Secretarias'])
+    @action(detail=False, methods=['get'], url_path='viagens/count', permission_classes=[permissions.IsAuthenticated])
+    def viagens_count(self, request):
+        qs = Secretaria.objects.annotate(total_viagens=Count('viagens')).values('id', 'nome', 'total_viagens').order_by('nome')
+        return Response({'status': 'success', 'data': list(qs)})
+
+    @extend_schema(summary='Contagem de carros por secretaria', responses={200: 'frotas.serializers.SecretariaCarrosCountResponseSerializer', 401: ErrorResponseSerializer}, tags=['Secretarias'])
+    @action(detail=False, methods=['get'], url_path='carros/count', permission_classes=[permissions.IsAuthenticated])
+    def carros_count(self, request):
+        qs = Secretaria.objects.annotate(total_carros=Count('carros')).values('id', 'nome', 'total_carros').order_by('nome')
+        return Response({'status': 'success', 'data': list(qs)})
+
 
 @extend_schema(tags=['Carros'])
 class CarroViewSet(viewsets.ModelViewSet):
@@ -78,15 +94,27 @@ class CarroViewSet(viewsets.ModelViewSet):
         'placa': ['exact', 'icontains'],
         'modelo': ['icontains'],
         'ano': ['exact', 'gte', 'lte', 'in'],
+        'odometro_atual': ['exact', 'gte', 'lte', 'isnull'],
     }
-    ordering_fields = ['placa', 'modelo', 'ano', 'criado_em']
+    ordering_fields = ['placa', 'modelo', 'ano', 'criado_em', 'odometro_atual']
     search_fields = ['placa', 'modelo']
+
+    class _Paginator(PageNumberPagination):
+        page_size = 10
+        page_size_query_param = 'page_size'
+
+    pagination_class = _Paginator
 
     @extend_schema(responses={200: CarroListResponseSerializer, 401: ErrorResponseSerializer})
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            page_payload = self.paginator.get_paginated_response(serializer.data).data
+            return Response({'status': 'success', 'data': page_payload})
         serializer = self.get_serializer(qs, many=True)
-        return Response({'status': 'success', 'data': serializer.data})
+        return Response({'status': 'success', 'data': {'count': len(serializer.data), 'next': None, 'previous': None, 'results': serializer.data}})
 
     @extend_schema(responses={201: CarroResponseSerializer, 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer})
     def create(self, request, *args, **kwargs):

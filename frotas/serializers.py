@@ -3,6 +3,29 @@ from .models import Secretaria, Carro, Viagem
 from django.db.models import Max
 
 
+class SecretariaViagensCountItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    nome = serializers.CharField()
+    total_viagens = serializers.IntegerField()
+
+
+class SecretariaViagensCountResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = SecretariaViagensCountItemSerializer(many=True)
+
+
+# Novos serializers para contagem de carros por secretaria
+class SecretariaCarrosCountItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    nome = serializers.CharField()
+    total_carros = serializers.IntegerField()
+
+
+class SecretariaCarrosCountResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = SecretariaCarrosCountItemSerializer(many=True)
+
+
 class SecretariaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Secretaria
@@ -11,12 +34,34 @@ class SecretariaSerializer(serializers.ModelSerializer):
 
 
 class CarroSerializer(serializers.ModelSerializer):
-    odometro_atual = serializers.IntegerField(read_only=True)
+    odometro_atual = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = Carro
         fields = ['placa', 'modelo', 'secretaria', 'ano', 'ativo', 'odometro_atual', 'criado_em', 'atualizado_em']
-        read_only_fields = ['criado_em', 'atualizado_em', 'odometro_atual']
+        read_only_fields = ['criado_em', 'atualizado_em']
+
+    def create(self, validated_data):
+        # Aceita 'odometro_atual' somente na criação via payload
+        raw = self.initial_data.get('odometro_atual', None)
+        if raw is not None:
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({'odometro_atual': 'Deve ser um inteiro maior ou igual a 0.'})
+            if value < 0:
+                raise serializers.ValidationError({'odometro_atual': 'Deve ser maior ou igual a 0.'})
+            validated_data['odometro_atual'] = value
+        return super().create(validated_data)
+
+    def validate_odometro_atual(self, value):
+        if value is None:
+            return None
+        if not isinstance(value, int):
+            raise serializers.ValidationError('Deve ser um número inteiro >= 0')
+        if value < 0:
+            raise serializers.ValidationError('Deve ser um número inteiro >= 0')
+        return value
 
 
 class ViagemSerializer(serializers.ModelSerializer):
