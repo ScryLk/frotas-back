@@ -46,6 +46,90 @@ class UserPublicSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class UserListResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = UserPublicSerializer(many=True)
+
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, allow_blank=False, min_length=10)
+
+    class Meta:
+        model = User
+        fields = (
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'is_active', 'is_staff', 'is_superuser', 'password'
+        )
+        read_only_fields = ('id',)
+
+    def validate_username(self, value):
+        qs = User.objects.filter(username=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Username já em uso.')
+        return value
+
+    def validate_email(self, value):
+        if not value:
+            return value
+        qs = User.objects.filter(email=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('Email já em uso.')
+        return value
+
+    def validate(self, attrs):
+        pwd = attrs.get('password')
+        if pwd:
+            user_for_validation = self.instance or User(
+                username=attrs.get('username') or getattr(self.instance, 'username', ''),
+                email=attrs.get('email') or getattr(self.instance, 'email', ''),
+                first_name=attrs.get('first_name') or getattr(self.instance, 'first_name', ''),
+                last_name=attrs.get('last_name') or getattr(self.instance, 'last_name', ''),
+            )
+            validate_password(pwd, user=user_for_validation)
+        return attrs
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        user = User.objects.create(**validated_data)
+        if password:
+            user.set_password(password)
+            user.save(update_fields=['password'])
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=10)
+
+    def validate(self, attrs):
+        user = self.context['user']
+        if not user.check_password(attrs['old_password']):
+            raise serializers.ValidationError({'old_password': 'Senha atual incorreta.'})
+        validate_password(attrs['new_password'], user=user)
+        return attrs
+
+
+class PasswordSetSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, min_length=10)
+
+    def validate_new_password(self, value):
+        validate_password(value, user=self.context['user'])
+        return value
+
+
 class RegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=10)
     password2 = serializers.CharField(write_only=True)
@@ -118,5 +202,10 @@ class TokenRefreshResponseSerializer(serializers.Serializer):
 
 
 class MeResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = UserPublicSerializer()
+
+
+class UserResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     data = UserPublicSerializer()

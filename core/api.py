@@ -1,5 +1,7 @@
 from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
 
 
 def custom_exception_handler(exc, context):
@@ -28,3 +30,10 @@ def custom_exception_handler(exc, context):
         'errors': data if isinstance(data, dict) else None,
     }
     return response
+
+
+class HealthView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({'status': 'success', 'data': {'health': 'ok'}})

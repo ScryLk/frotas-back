@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from .models import Secretaria, Carro, Viagem
+from .models import Secretaria, Carro, Viagem, Usuario
 from .serializers import (
     SecretariaSerializer,
     CarroSerializer,
@@ -13,6 +13,8 @@ from .serializers import (
     ViagemResponseSerializer,
     ViagemListResponseSerializer,
     SecretariaViagensCountResponseSerializer,
+    UsuarioSerializer,
+    UsuarioListResponseSerializer,
 )
 from core.serializers import ErrorResponseSerializer
 from django_filters.rest_framework import DjangoFilterBackend
@@ -184,3 +186,16 @@ class ViagemViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=['Usuários'])
+class UsuarioViewSet(viewsets.ModelViewSet):
+    queryset = Usuario.objects.all().order_by('username')
+    serializer_class = UsuarioSerializer
+    permission_classes = [IsSuperUserOrReadOnly]
+
+    @extend_schema(responses={200: UsuarioListResponseSerializer, 401: ErrorResponseSerializer})
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'status': 'success', 'data': serializer.data})
