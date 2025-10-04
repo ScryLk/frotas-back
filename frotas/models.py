@@ -43,19 +43,15 @@ class Carro(TimeStampedModel):
 
 class Usuario(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = models.CharField(max_length=80, unique=True, help_text='sAMAccountName ou UPN do AD')
-    nome = models.CharField(max_length=120, blank=True, null=True)
-    email = models.EmailField(max_length=160, blank=True, null=True)
-    ativo = models.BooleanField(default=True)
-    origem_ad = models.BooleanField(default=True, help_text='Marca se veio do AD')
+    nome = models.CharField(max_length=120)
 
     class Meta:
         verbose_name = 'Usuário'
         verbose_name_plural = 'Usuários'
-        ordering = ['username']
+        ordering = ['nome']
 
     def __str__(self):
-        return self.nome or self.username
+        return self.nome
 
 
 class Viagem(TimeStampedModel):

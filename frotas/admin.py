@@ -17,9 +17,8 @@ class CarroAdmin(admin.ModelAdmin):
 
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
-    list_display = ('username', 'nome', 'email', 'ativo', 'origem_ad')
-    list_filter = ('ativo', 'origem_ad')
-    search_fields = ('username', 'nome', 'email')
+    list_display = ('nome',)
+    search_fields = ('nome',)
 
 
 @admin.register(Viagem)
@@ -29,4 +28,4 @@ class ViagemAdmin(admin.ModelAdmin):
         'data_saida', 'odometro_saida', 'data_chegada', 'odometro_chegada', 'em_andamento'
     )
     list_filter = ('secretaria', 'carro', 'motorista')
-    search_fields = ('destino', 'observacoes')
+    search_fields = ('destino',)

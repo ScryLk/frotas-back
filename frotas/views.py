@@ -190,12 +190,57 @@ class ViagemViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=['Usuários'])
 class UsuarioViewSet(viewsets.ModelViewSet):
-    queryset = Usuario.objects.all().order_by('username')
+    queryset = Usuario.objects.all().order_by('nome')
     serializer_class = UsuarioSerializer
     permission_classes = [IsSuperUserOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = {
+        'nome': ['icontains', 'exact'],
+    }
+    ordering_fields = ['nome', 'criado_em']
+    search_fields = ['nome']
+
+    class _Paginator(PageNumberPagination):
+        page_size = 10
+        page_size_query_param = 'page_size'
+
+    pagination_class = _Paginator
 
     @extend_schema(responses={200: UsuarioListResponseSerializer, 401: ErrorResponseSerializer})
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            page_payload = self.paginator.get_paginated_response(serializer.data).data
+            return Response({'status': 'success', 'data': page_payload})
         serializer = self.get_serializer(qs, many=True)
+        return Response({'status': 'success', 'data': {'count': len(serializer.data), 'next': None, 'previous': None, 'results': serializer.data}})
+
+    @extend_schema(responses={201: 'frotas.serializers.UsuarioResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer})
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={200: 'frotas.serializers.UsuarioResponseSerializer', 401: ErrorResponseSerializer, 404: ErrorResponseSerializer})
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
         return Response({'status': 'success', 'data': serializer.data})
+
+    @extend_schema(responses={200: 'frotas.serializers.UsuarioResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer})
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'status': 'success', 'data': serializer.data})
+
+    @extend_schema(responses={200: None, 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 404: ErrorResponseSerializer})
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)

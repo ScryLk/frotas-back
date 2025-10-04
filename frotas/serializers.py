@@ -157,7 +157,7 @@ class ViagemListResponseSerializer(serializers.Serializer):
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'username', 'nome', 'email', 'ativo', 'origem_ad', 'criado_em', 'atualizado_em']
+        fields = ['id', 'nome', 'criado_em', 'atualizado_em']
         read_only_fields = ['id', 'criado_em', 'atualizado_em']
 
 
