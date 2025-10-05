@@ -56,6 +56,11 @@ class Motorista(TimeStampedModel):
 
 
 class Viagem(TimeStampedModel):
+    class Status(models.TextChoices):
+        EM_ANDAMENTO = 'em_andamento', 'Em andamento'
+        CONCLUIDA = 'concluida', 'Concluída'
+        CANCELADA = 'cancelada', 'Cancelada'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     secretaria = models.ForeignKey(Secretaria, on_delete=models.PROTECT, related_name='viagens')
     carro = models.ForeignKey(Carro, to_field='placa', db_column='carro_placa', on_delete=models.PROTECT, related_name='viagens')
@@ -66,6 +71,7 @@ class Viagem(TimeStampedModel):
     odometro_chegada = models.PositiveIntegerField(blank=True, null=True)
     destino = models.CharField(max_length=160)
     observacoes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.EM_ANDAMENTO)
 
     class Meta:
         verbose_name = 'Viagem'
@@ -77,7 +83,7 @@ class Viagem(TimeStampedModel):
 
     @property
     def em_andamento(self):
-        return self.data_chegada is None
+        return self.status == self.Status.EM_ANDAMENTO
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

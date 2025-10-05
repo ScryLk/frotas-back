@@ -71,7 +71,7 @@ class ViagemSerializer(serializers.ModelSerializer):
             'id', 'secretaria', 'carro', 'motorista',
             'data_saida', 'odometro_saida',
             'data_chegada', 'odometro_chegada',
-            'destino', 'observacoes',
+            'destino', 'observacoes', 'status',
             'criado_em', 'atualizado_em'
         ]
         read_only_fields = ['id', 'criado_em', 'atualizado_em']
