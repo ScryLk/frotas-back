@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Secretaria, Carro, Usuario, Viagem
+from .models import Secretaria, Carro, Motorista, Viagem
 
 
 @admin.register(Secretaria)
@@ -15,8 +15,8 @@ class CarroAdmin(admin.ModelAdmin):
     search_fields = ('placa', 'modelo')
 
 
-@admin.register(Usuario)
-class UsuarioAdmin(admin.ModelAdmin):
+@admin.register(Motorista)
+class MotoristaAdmin(admin.ModelAdmin):
     list_display = ('nome',)
     search_fields = ('nome',)
 

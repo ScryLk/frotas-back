@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from .models import Secretaria, Carro, Viagem, Usuario
+from .models import Secretaria, Carro, Viagem, Motorista
 from .serializers import (
     SecretariaSerializer,
     CarroSerializer,
@@ -13,8 +13,8 @@ from .serializers import (
     ViagemResponseSerializer,
     ViagemListResponseSerializer,
     SecretariaViagensCountResponseSerializer,
-    UsuarioSerializer,
-    UsuarioListResponseSerializer,
+    MotoristaSerializer,
+    MotoristaListResponseSerializer,
 )
 from core.serializers import ErrorResponseSerializer
 from django_filters.rest_framework import DjangoFilterBackend
@@ -188,10 +188,10 @@ class ViagemViewSet(viewsets.ModelViewSet):
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
 
 
-@extend_schema(tags=['Usuários'])
-class UsuarioViewSet(viewsets.ModelViewSet):
-    queryset = Usuario.objects.all().order_by('nome')
-    serializer_class = UsuarioSerializer
+@extend_schema(tags=['Motoristas'])
+class MotoristaViewSet(viewsets.ModelViewSet):
+    queryset = Motorista.objects.all().order_by('nome')
+    serializer_class = MotoristaSerializer
     permission_classes = [IsSuperUserOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = {
@@ -206,7 +206,7 @@ class UsuarioViewSet(viewsets.ModelViewSet):
 
     pagination_class = _Paginator
 
-    @extend_schema(responses={200: UsuarioListResponseSerializer, 401: ErrorResponseSerializer})
+    @extend_schema(responses={200: MotoristaListResponseSerializer, 401: ErrorResponseSerializer})
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(qs)
@@ -217,20 +217,20 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(qs, many=True)
         return Response({'status': 'success', 'data': {'count': len(serializer.data), 'next': None, 'previous': None, 'results': serializer.data}})
 
-    @extend_schema(responses={201: 'frotas.serializers.UsuarioResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer})
+    @extend_schema(responses={201: 'frotas.serializers.MotoristaResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer})
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response({'status': 'success', 'data': serializer.data}, status=status.HTTP_201_CREATED)
 
-    @extend_schema(responses={200: 'frotas.serializers.UsuarioResponseSerializer', 401: ErrorResponseSerializer, 404: ErrorResponseSerializer})
+    @extend_schema(responses={200: 'frotas.serializers.MotoristaResponseSerializer', 401: ErrorResponseSerializer, 404: ErrorResponseSerializer})
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         return Response({'status': 'success', 'data': serializer.data})
 
-    @extend_schema(responses={200: 'frotas.serializers.UsuarioResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer})
+    @extend_schema(responses={200: 'frotas.serializers.MotoristaResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer, 404: ErrorResponseSerializer})
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()

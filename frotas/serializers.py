@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Secretaria, Carro, Viagem, Usuario
+from .models import Secretaria, Carro, Viagem, Motorista
 from django.db.models import Max
 
 
@@ -153,19 +153,19 @@ class ViagemListResponseSerializer(serializers.Serializer):
     data = ViagemSerializer(many=True)
 
 
-# Usuários
-class UsuarioSerializer(serializers.ModelSerializer):
+# Motoristas
+class MotoristaSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Usuario
+        model = Motorista
         fields = ['id', 'nome', 'criado_em', 'atualizado_em']
         read_only_fields = ['id', 'criado_em', 'atualizado_em']
 
 
-class UsuarioResponseSerializer(serializers.Serializer):
+class MotoristaResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
-    data = UsuarioSerializer()
+    data = MotoristaSerializer()
 
 
-class UsuarioListResponseSerializer(serializers.Serializer):
+class MotoristaListResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
-    data = UsuarioSerializer(many=True)
+    data = MotoristaSerializer(many=True)

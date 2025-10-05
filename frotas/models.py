@@ -41,14 +41,15 @@ class Carro(TimeStampedModel):
         return f"{self.placa} - {self.modelo}"
 
 
-class Usuario(TimeStampedModel):
+class Motorista(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nome = models.CharField(max_length=120)
 
     class Meta:
-        verbose_name = 'Usuário'
-        verbose_name_plural = 'Usuários'
+        verbose_name = 'Motorista'
+        verbose_name_plural = 'Motoristas'
         ordering = ['nome']
+        db_table = 'frotas_motorista'
 
     def __str__(self):
         return self.nome
@@ -58,7 +59,7 @@ class Viagem(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     secretaria = models.ForeignKey(Secretaria, on_delete=models.PROTECT, related_name='viagens')
     carro = models.ForeignKey(Carro, to_field='placa', db_column='carro_placa', on_delete=models.PROTECT, related_name='viagens')
-    motorista = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='viagens')
+    motorista = models.ForeignKey(Motorista, on_delete=models.PROTECT, related_name='viagens')
     data_saida = models.DateTimeField()
     odometro_saida = models.PositiveIntegerField()
     data_chegada = models.DateTimeField(blank=True, null=True)
