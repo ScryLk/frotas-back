@@ -31,7 +31,8 @@ class MeView(APIView):
                         'username': 'jdoe',
                         'email': 'jdoe@example.com',
                         'first_name': 'John',
-                        'last_name': 'Doe'
+                        'last_name': 'Doe',
+                        'is_superuser': True
                     }
                 },
             )
@@ -47,6 +48,7 @@ class MeView(APIView):
                 'email': getattr(user, 'email', ''),
                 'first_name': getattr(user, 'first_name', ''),
                 'last_name': getattr(user, 'last_name', ''),
+                'is_superuser': getattr(user, 'is_superuser', False),
             }
         })
 

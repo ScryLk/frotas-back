@@ -203,7 +203,9 @@ class TokenRefreshResponseSerializer(serializers.Serializer):
 
 class MeResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
-    data = UserPublicSerializer()
+    data = serializers.DictField(child=serializers.CharField())
+    # Para documentação, detalhar os campos esperados
+    # id, username, email, first_name, last_name, is_superuser
 
 
 class UserResponseSerializer(serializers.Serializer):
