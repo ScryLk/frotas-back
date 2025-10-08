@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Secretaria, Carro, Viagem, Motorista
+from .models import Secretaria, Carro, Viagem, Motorista, Localizacao
 from django.db.models import Max
 
 
@@ -68,7 +68,7 @@ class ViagemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Viagem
         fields = [
-            'id', 'secretaria', 'carro', 'motorista',
+            'id', 'secretaria', 'carro', 'motorista', 'localizacao',
             'data_saida', 'odometro_saida',
             'data_chegada', 'odometro_chegada',
             'destino', 'observacoes', 'status',
@@ -122,6 +122,13 @@ class ViagemSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class LocalizacaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Localizacao
+        fields = ['id', 'nome', 'endereco', 'descricao', 'latitude', 'longitude', 'criado_em', 'atualizado_em']
+        read_only_fields = ['id', 'criado_em', 'atualizado_em']
+
+
 # Envelopes para documentação e padronização de respostas
 class SecretariaResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
@@ -169,3 +176,57 @@ class MotoristaResponseSerializer(serializers.Serializer):
 class MotoristaListResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     data = MotoristaSerializer(many=True)
+
+
+class LocalizacaoResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = LocalizacaoSerializer()
+
+
+class LocalizacaoListResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = LocalizacaoSerializer(many=True)
+
+
+# Relatórios / Analytics
+class ViagensTotaisDataSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    em_andamento = serializers.IntegerField()
+    concluida = serializers.IntegerField()
+    cancelada = serializers.IntegerField()
+
+
+class ViagensTotaisResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagensTotaisDataSerializer()
+
+
+class ViagensSerieItemSerializer(serializers.Serializer):
+    periodo = serializers.CharField()
+    total = serializers.IntegerField()
+
+
+class ViagensSerieResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagensSerieItemSerializer(many=True)
+
+
+class ViagensKmPorSecretariaItemSerializer(serializers.Serializer):
+    secretaria = serializers.UUIDField()
+    nome = serializers.CharField()
+    total_km = serializers.IntegerField()
+
+
+class ViagensKmPorSecretariaResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagensKmPorSecretariaItemSerializer(many=True)
+
+
+class ViagensTopDestinosItemSerializer(serializers.Serializer):
+    destino = serializers.CharField()
+    total = serializers.IntegerField()
+
+
+class ViagensTopDestinosResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagensTopDestinosItemSerializer(many=True)

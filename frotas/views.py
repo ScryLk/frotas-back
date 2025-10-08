@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
-from .models import Secretaria, Carro, Viagem, Motorista
+from .models import Secretaria, Carro, Viagem, Motorista, Localizacao
 from .serializers import (
     SecretariaSerializer,
     CarroSerializer,
@@ -15,6 +15,9 @@ from .serializers import (
     SecretariaViagensCountResponseSerializer,
     MotoristaSerializer,
     MotoristaListResponseSerializer,
+    LocalizacaoSerializer,
+    LocalizacaoResponseSerializer,
+    LocalizacaoListResponseSerializer,
 )
 from core.serializers import ErrorResponseSerializer
 from django_filters.rest_framework import DjangoFilterBackend
@@ -22,6 +25,9 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.utils.dateparse import parse_date
+from datetime import datetime, timedelta
 
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
@@ -153,9 +159,51 @@ class ViagemViewSet(viewsets.ModelViewSet):
     serializer_class = ViagemSerializer
     permission_classes = [IsSuperUserOrReadOnly]
 
+    # Filtros básicos para apoiar relatórios e listagens
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = {
+        'secretaria': ['exact'],
+        'carro': ['exact'],
+        'motorista': ['exact'],
+        'status': ['exact', 'in'],
+        'data_saida': ['gte', 'lte', 'date__gte', 'date__lte'],
+    }
+    ordering_fields = ['data_saida', 'criado_em']
+
+    def _period_filter(self, qs, request):
+        data_ini = request.query_params.get('data_ini')
+        data_fim = request.query_params.get('data_fim')
+        if data_ini:
+            try:
+                dt_ini = datetime.fromisoformat(data_ini)
+            except Exception:
+                d = parse_date(data_ini)
+                if d:
+                    dt_ini = datetime.combine(d, datetime.min.time())
+                else:
+                    dt_ini = None
+            if dt_ini:
+                qs = qs.filter(data_saida__gte=dt_ini)
+        if data_fim:
+            try:
+                dt_fim = datetime.fromisoformat(data_fim)
+            except Exception:
+                d = parse_date(data_fim)
+                if d:
+                    dt_fim = datetime.combine(d, datetime.max.time())
+                else:
+                    dt_fim = None
+            if dt_fim:
+                qs = qs.filter(data_saida__lte=dt_fim)
+        status_param = request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status__in=[s.strip() for s in status_param.split(',') if s.strip()])
+        return qs
+
     @extend_schema(responses={200: ViagemListResponseSerializer, 401: ErrorResponseSerializer})
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
+        qs = self._period_filter(qs, request)
         serializer = self.get_serializer(qs, many=True)
         return Response({'status': 'success', 'data': serializer.data})
 
@@ -186,6 +234,76 @@ class ViagemViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
+
+    @extend_schema(summary='Totais de viagens', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='totais', permission_classes=[permissions.IsAuthenticated])
+    def totais(self, request):
+        qs = self._period_filter(self.get_queryset(), request)
+        total = qs.count()
+        by_status_rows = qs.values('status').annotate(c=Count('id'))
+        by_status = {row['status']: row['c'] for row in by_status_rows}
+        data = {
+            'total': total,
+            'em_andamento': by_status.get(Viagem.Status.EM_ANDAMENTO, 0),
+            'concluida': by_status.get(Viagem.Status.CONCLUIDA, 0),
+            'cancelada': by_status.get(Viagem.Status.CANCELADA, 0),
+        }
+        return Response({'status': 'success', 'data': data})
+
+    @extend_schema(summary='Série temporal de viagens por dia', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensSerieResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='serie', permission_classes=[permissions.IsAuthenticated])
+    def serie(self, request):
+        qs = self._period_filter(self.get_queryset(), request)
+        serie = (
+            qs.annotate(periodo=TruncDate('data_saida'))
+              .values('periodo')
+              .annotate(total=Count('id'))
+              .order_by('periodo')
+        )
+        data = [{'periodo': i['periodo'].isoformat(), 'total': i['total']} for i in serie]
+        return Response({'status': 'success', 'data': data})
+
+    @extend_schema(summary='KM por secretaria (aprox. por diferença de odômetros)', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensKmPorSecretariaResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='km_por_secretaria', permission_classes=[permissions.IsAuthenticated])
+    def km_por_secretaria(self, request):
+        qs = self._period_filter(self.get_queryset(), request)
+        # Somatório simples de (odometro_chegada - odometro_saida) quando ambos informados
+        rows = (
+            qs.exclude(odometro_chegada__isnull=True)
+              .values('secretaria__id', 'secretaria__nome')
+              .annotate(total_km=Count('id'))  # placeholder para estrutura
+        )
+        # Recalcular manualmente total_km pois agregação por diferença não é suportada em Count
+        totals = {}
+        for v in qs.exclude(odometro_chegada__isnull=True).select_related('secretaria'):
+            delta = max(0, (v.odometro_chegada or 0) - (v.odometro_saida or 0))
+            sid = v.secretaria.id
+            totals.setdefault(sid, {'secretaria': sid, 'nome': v.secretaria.nome, 'total_km': 0})
+            totals[sid]['total_km'] += delta
+        data = list(totals.values())
+        data.sort(key=lambda x: x['nome'])
+        return Response({'status': 'success', 'data': data})
+
+    @extend_schema(summary='Top destinos', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTopDestinosResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='top_destinos', permission_classes=[permissions.IsAuthenticated])
+    def top_destinos(self, request):
+        qs = self._period_filter(self.get_queryset(), request)
+        limit = int(request.query_params.get('limit', '10'))
+        # Preferir nome da Localizacao quando houver, senão usar destino textual
+        agg = (
+            qs.values('localizacao__nome', 'destino')
+              .annotate(total=Count('id'))
+              .order_by('-total')
+        )
+        items = []
+        for row in agg:
+            nome = row['localizacao__nome'] or row['destino']
+            if not nome:
+                continue
+            items.append({'destino': nome, 'total': row['total']})
+            if len(items) >= limit:
+                break
+        return Response({'status': 'success', 'data': items})
 
 
 @extend_schema(tags=['Motoristas'])
@@ -244,3 +362,108 @@ class MotoristaViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=['Localizações'])
+class LocalizacaoViewSet(viewsets.ModelViewSet):
+    queryset = Localizacao.objects.all().order_by('nome')
+    serializer_class = LocalizacaoSerializer
+    permission_classes = [IsSuperUserOrReadOnly]
+
+    @extend_schema(responses={200: LocalizacaoListResponseSerializer, 401: 'core.serializers.ErrorResponseSerializer'})
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        serializer = self.get_serializer(qs, many=True)
+        return Response({'status': 'success', 'data': serializer.data})
+
+    @extend_schema(responses={201: LocalizacaoResponseSerializer, 401: 'core.serializers.ErrorResponseSerializer', 403: 'core.serializers.ErrorResponseSerializer', 400: 'core.serializers.ErrorResponseSerializer'})
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'data': serializer.data}, status=status.HTTP_201_CREATED)
+
+    @extend_schema(responses={200: LocalizacaoResponseSerializer, 401: 'core.serializers.ErrorResponseSerializer', 404: 'core.serializers.ErrorResponseSerializer'})
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({'status': 'success', 'data': serializer.data})
+
+    @extend_schema(responses={200: LocalizacaoResponseSerializer, 401: 'core.serializers.ErrorResponseSerializer', 403: 'core.serializers.ErrorResponseSerializer', 400: 'core.serializers.ErrorResponseSerializer', 404: 'core.serializers.ErrorResponseSerializer'})
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'status': 'success', 'data': serializer.data})
+
+    @extend_schema(responses={200: None, 401: 'core.serializers.ErrorResponseSerializer', 403: 'core.serializers.ErrorResponseSerializer', 404: 'core.serializers.ErrorResponseSerializer'})
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=['Relatórios'])
+class RelatoriosViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _qs(self, request):
+        view = ViagemViewSet()
+        view.request = request
+        view.kwargs = {}
+        return view._period_filter(Viagem.objects.all(), request)
+
+    @extend_schema(summary='Totais de viagens', responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
+    def list(self, request):
+        qs = self._qs(request)
+        total = qs.count()
+        by_status_rows = qs.values('status').annotate(c=Count('id'))
+        by_status = {row['status']: row['c'] for row in by_status_rows}
+        data = {
+            'total': total,
+            'em_andamento': by_status.get(Viagem.Status.EM_ANDAMENTO, 0),
+            'concluida': by_status.get(Viagem.Status.CONCLUIDA, 0),
+            'cancelada': by_status.get(Viagem.Status.CANCELADA, 0),
+        }
+        return Response({'status': 'success', 'data': data})
+
+    @extend_schema(summary='Totais de viagens', responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='totais')
+    def totais(self, request):
+        qs = self._qs(request)
+        total = qs.count()
+        by_status_rows = qs.values('status').annotate(c=Count('id'))
+        by_status = {row['status']: row['c'] for row in by_status_rows}
+        data = {
+            'total': total,
+            'em_andamento': by_status.get(Viagem.Status.EM_ANDAMENTO, 0),
+            'concluida': by_status.get(Viagem.Status.CONCLUIDA, 0),
+            'cancelada': by_status.get(Viagem.Status.CANCELADA, 0),
+        }
+        return Response({'status': 'success', 'data': data})
+
+    @extend_schema(summary='Série temporal de viagens por dia', responses={200: 'frotas.serializers.ViagensSerieResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='serie')
+    def serie(self, request):
+        view = ViagemViewSet()
+        view.request = request
+        view.kwargs = {}
+        return view.serie(request)
+
+    @extend_schema(summary='KM por secretaria', responses={200: 'frotas.serializers.ViagensKmPorSecretariaResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='km_por_secretaria')
+    def km_por_secretaria(self, request):
+        view = ViagemViewSet()
+        view.request = request
+        view.kwargs = {}
+        return view.km_por_secretaria(request)
+
+    @extend_schema(summary='Top destinos', responses={200: 'frotas.serializers.ViagensTopDestinosResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='top_destinos')
+    def top_destinos(self, request):
+        view = ViagemViewSet()
+        view.request = request
+        view.kwargs = {}
+        return view.top_destinos(request)

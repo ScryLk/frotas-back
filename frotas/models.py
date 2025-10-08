@@ -55,6 +55,23 @@ class Motorista(TimeStampedModel):
         return self.nome
 
 
+class Localizacao(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nome = models.CharField(max_length=160)
+    endereco = models.CharField(max_length=255, blank=True, null=True)
+    descricao = models.TextField(blank=True, null=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Localização'
+        verbose_name_plural = 'Localizações'
+        ordering = ['nome']
+
+    def __str__(self):
+        return self.nome
+
+
 class Viagem(TimeStampedModel):
     class Status(models.TextChoices):
         EM_ANDAMENTO = 'em_andamento', 'Em andamento'
@@ -65,6 +82,8 @@ class Viagem(TimeStampedModel):
     secretaria = models.ForeignKey(Secretaria, on_delete=models.PROTECT, related_name='viagens')
     carro = models.ForeignKey(Carro, to_field='placa', db_column='carro_placa', on_delete=models.PROTECT, related_name='viagens')
     motorista = models.ForeignKey(Motorista, on_delete=models.PROTECT, related_name='viagens')
+    # Nova relação opcional com Localizacao pré-cadastrada
+    localizacao = models.ForeignKey('Localizacao', on_delete=models.PROTECT, related_name='viagens', blank=True, null=True)
     data_saida = models.DateTimeField()
     odometro_saida = models.PositiveIntegerField()
     data_chegada = models.DateTimeField(blank=True, null=True)
@@ -86,6 +105,9 @@ class Viagem(TimeStampedModel):
         return self.status == self.Status.EM_ANDAMENTO
 
     def save(self, *args, **kwargs):
+        # Se não foi informado destino textual mas há localizacao, usa o nome da localizacao
+        if not self.destino and self.localizacao:
+            self.destino = self.localizacao.nome
         super().save(*args, **kwargs)
         # Atualiza odômetro do carro ao salvar viagem (tratando nulos como 0 para baseline)
         try:
