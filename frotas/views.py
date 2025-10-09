@@ -28,6 +28,7 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
+from rest_framework.permissions import DjangoModelPermissionsOrAnonReadOnly
 
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
@@ -157,7 +158,7 @@ class CarroViewSet(viewsets.ModelViewSet):
 class ViagemViewSet(viewsets.ModelViewSet):
     queryset = Viagem.objects.select_related('secretaria', 'carro', 'motorista').all().order_by('-data_saida')
     serializer_class = ViagemSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     # Filtros básicos para apoiar relatórios e listagens
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
@@ -171,33 +172,46 @@ class ViagemViewSet(viewsets.ModelViewSet):
     ordering_fields = ['data_saida', 'criado_em']
 
     def _period_filter(self, qs, request):
-        data_ini = request.query_params.get('data_ini')
-        data_fim = request.query_params.get('data_fim')
-        if data_ini:
+        # Parâmetros de período agora são opcionais. Quando ausentes/blank, considera "todo o período" (sem filtro por data).
+        def _norm(v):
+            if v is None:
+                return None
+            v2 = str(v).strip().lower()
+            return None if v2 in ('', 'null', 'none', 'undefined') else v
+
+        def _parse_dt(v):
             try:
-                dt_ini = datetime.fromisoformat(data_ini)
+                return datetime.fromisoformat(v)
             except Exception:
-                d = parse_date(data_ini)
+                d = parse_date(v)
                 if d:
-                    dt_ini = datetime.combine(d, datetime.min.time())
-                else:
-                    dt_ini = None
+                    return datetime.combine(d, datetime.min.time())
+            return None
+
+        data_ini = _norm(request.query_params.get('data_ini'))
+        data_fim = _norm(request.query_params.get('data_fim'))
+
+        if data_ini:
+            dt_ini = _parse_dt(data_ini)
             if dt_ini:
                 qs = qs.filter(data_saida__gte=dt_ini)
         if data_fim:
+            # usar fim do dia quando data sem hora
+            dt_fim = None
             try:
                 dt_fim = datetime.fromisoformat(data_fim)
             except Exception:
                 d = parse_date(data_fim)
                 if d:
                     dt_fim = datetime.combine(d, datetime.max.time())
-                else:
-                    dt_fim = None
             if dt_fim:
                 qs = qs.filter(data_saida__lte=dt_fim)
+
         status_param = request.query_params.get('status')
         if status_param:
-            qs = qs.filter(status__in=[s.strip() for s in status_param.split(',') if s.strip()])
+            statuses = [s.strip() for s in str(status_param).split(',') if s and s.strip()]
+            if statuses:
+                qs = qs.filter(status__in(statuses))
         return qs
 
     @extend_schema(responses={200: ViagemListResponseSerializer, 401: ErrorResponseSerializer})
@@ -235,7 +249,7 @@ class ViagemViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
 
-    @extend_schema(summary='Totais de viagens', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
+    @extend_schema(summary='Totais de viagens', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='totais', permission_classes=[permissions.IsAuthenticated])
     def totais(self, request):
         qs = self._period_filter(self.get_queryset(), request)
@@ -250,7 +264,7 @@ class ViagemViewSet(viewsets.ModelViewSet):
         }
         return Response({'status': 'success', 'data': data})
 
-    @extend_schema(summary='Série temporal de viagens por dia', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensSerieResponseSerializer'})
+    @extend_schema(summary='Série temporal de viagens por dia', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensSerieResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='serie', permission_classes=[permissions.IsAuthenticated])
     def serie(self, request):
         qs = self._period_filter(self.get_queryset(), request)
@@ -263,7 +277,7 @@ class ViagemViewSet(viewsets.ModelViewSet):
         data = [{'periodo': i['periodo'].isoformat(), 'total': i['total']} for i in serie]
         return Response({'status': 'success', 'data': data})
 
-    @extend_schema(summary='KM por secretaria (aprox. por diferença de odômetros)', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensKmPorSecretariaResponseSerializer'})
+    @extend_schema(summary='KM por secretaria (aprox. por diferença de odômetros)', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensKmPorSecretariaResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='km_por_secretaria', permission_classes=[permissions.IsAuthenticated])
     def km_por_secretaria(self, request):
         qs = self._period_filter(self.get_queryset(), request)
@@ -284,11 +298,16 @@ class ViagemViewSet(viewsets.ModelViewSet):
         data.sort(key=lambda x: x['nome'])
         return Response({'status': 'success', 'data': data})
 
-    @extend_schema(summary='Top destinos', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTopDestinosResponseSerializer'})
+    @extend_schema(summary='Top destinos', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema). Parâmetro limit é opcional.', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTopDestinosResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='top_destinos', permission_classes=[permissions.IsAuthenticated])
     def top_destinos(self, request):
         qs = self._period_filter(self.get_queryset(), request)
-        limit = int(request.query_params.get('limit', '10'))
+        limit_raw = request.query_params.get('limit')
+        try:
+            limit = int(limit_raw) if limit_raw not in (None, '', 'null', 'None') else 10
+        except Exception:
+            limit = 10
+        limit = max(1, min(limit, 100))
         # Preferir nome da Localizacao quando houver, senão usar destino textual
         agg = (
             qs.values('localizacao__nome', 'destino')
@@ -310,7 +329,7 @@ class ViagemViewSet(viewsets.ModelViewSet):
 class MotoristaViewSet(viewsets.ModelViewSet):
     queryset = Motorista.objects.all().order_by('nome')
     serializer_class = MotoristaSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = {
         'nome': ['icontains', 'exact'],
@@ -368,7 +387,7 @@ class MotoristaViewSet(viewsets.ModelViewSet):
 class LocalizacaoViewSet(viewsets.ModelViewSet):
     queryset = Localizacao.objects.all().order_by('nome')
     serializer_class = LocalizacaoSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     @extend_schema(responses={200: LocalizacaoListResponseSerializer, 401: 'core.serializers.ErrorResponseSerializer'})
     def list(self, request, *args, **kwargs):
@@ -415,7 +434,7 @@ class RelatoriosViewSet(viewsets.ViewSet):
         view.kwargs = {}
         return view._period_filter(Viagem.objects.all(), request)
 
-    @extend_schema(summary='Totais de viagens', responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
+    @extend_schema(summary='Totais de viagens', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
     def list(self, request):
         qs = self._qs(request)
         total = qs.count()
@@ -429,7 +448,7 @@ class RelatoriosViewSet(viewsets.ViewSet):
         }
         return Response({'status': 'success', 'data': data})
 
-    @extend_schema(summary='Totais de viagens', responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
+    @extend_schema(summary='Totais de viagens', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='totais')
     def totais(self, request):
         qs = self._qs(request)
@@ -444,7 +463,7 @@ class RelatoriosViewSet(viewsets.ViewSet):
         }
         return Response({'status': 'success', 'data': data})
 
-    @extend_schema(summary='Série temporal de viagens por dia', responses={200: 'frotas.serializers.ViagensSerieResponseSerializer'})
+    @extend_schema(summary='Série temporal de viagens por dia', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', responses={200: 'frotas.serializers.ViagensSerieResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='serie')
     def serie(self, request):
         view = ViagemViewSet()
@@ -452,7 +471,7 @@ class RelatoriosViewSet(viewsets.ViewSet):
         view.kwargs = {}
         return view.serie(request)
 
-    @extend_schema(summary='KM por secretaria', responses={200: 'frotas.serializers.ViagensKmPorSecretariaResponseSerializer'})
+    @extend_schema(summary='KM por secretaria', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', responses={200: 'frotas.serializers.ViagensKmPorSecretariaResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='km_por_secretaria')
     def km_por_secretaria(self, request):
         view = ViagemViewSet()
@@ -460,7 +479,7 @@ class RelatoriosViewSet(viewsets.ViewSet):
         view.kwargs = {}
         return view.km_por_secretaria(request)
 
-    @extend_schema(summary='Top destinos', responses={200: 'frotas.serializers.ViagensTopDestinosResponseSerializer'})
+    @extend_schema(summary='Top destinos', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema). Parâmetro limit é opcional.', responses={200: 'frotas.serializers.ViagensTopDestinosResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='top_destinos')
     def top_destinos(self, request):
         view = ViagemViewSet()
