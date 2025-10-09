@@ -8,7 +8,7 @@ from drf_spectacular.utils import extend_schema, OpenApiExample
 from rest_framework_simplejwt.views import TokenObtainPairView as BaseTokenObtainPairView, TokenRefreshView as BaseTokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .serializers import CustomTokenObtainPairSerializer, CustomTokenRefreshSerializer, RegistrationSerializer, UserPublicSerializer, RegisterResponseSerializer, TokenObtainPairResponseSerializer, TokenRefreshResponseSerializer, MeResponseSerializer, LoginRequestSerializer, UserListResponseSerializer, UserAdminSerializer, PasswordChangeSerializer, PasswordSetSerializer
+from .serializers import CustomTokenObtainPairSerializer, CustomTokenRefreshSerializer, RegistrationSerializer, UserPublicSerializer, RegisterResponseSerializer, TokenObtainPairResponseSerializer, TokenRefreshResponseSerializer, MeResponseSerializer, LoginRequestSerializer, UserListResponseSerializer, UserAdminSerializer, PasswordChangeSerializer, PasswordSetSerializer, FirstAccessPasswordChangeSerializer
 from django.contrib.auth.models import User
 from rest_framework import status
 from core.serializers import ErrorResponseSerializer
@@ -120,12 +120,17 @@ class LoginView(APIView):
         user = authenticate(request, username=username, password=password)
         if not user:
             return Response({'status': 'error', 'message': 'Credenciais inválidas', 'errors': {'non_field_errors': ['Credenciais inválidas']}}, status=401)
+
+        # Verifica se o usuário precisa trocar a senha
+        require_password_change = getattr(user.profile, 'require_password_change', False) if hasattr(user, 'profile') else False
+
         refresh = RefreshToken.for_user(user)
         return Response({
             'status': 'success',
             'data': {
                 'access': str(refresh.access_token),
                 'refresh': str(refresh),
+                'require_password_change': require_password_change,
                 'user': {
                     'id': user.id,
                     'username': user.get_username(),
@@ -206,4 +211,38 @@ class UsersAdminViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data['new_password'])
         user.save(update_fields=['password'])
+        return Response({'status': 'success', 'data': None})
+
+
+class FirstAccessPasswordChangeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary='Redefinir senha no primeiro acesso',
+        tags=['Auth'],
+        request=FirstAccessPasswordChangeSerializer,
+        responses={200: None, 400: ErrorResponseSerializer, 401: ErrorResponseSerializer, 403: ErrorResponseSerializer},
+    )
+    def post(self, request):
+        user = request.user
+
+        # Verifica se o usuário realmente precisa trocar a senha
+        if not hasattr(user, 'profile') or not user.profile.require_password_change:
+            return Response({
+                'status': 'error',
+                'message': 'Usuário não precisa trocar a senha',
+                'errors': {'non_field_errors': ['Usuário não precisa trocar a senha']}
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = FirstAccessPasswordChangeSerializer(data=request.data, context={'user': user})
+        serializer.is_valid(raise_exception=True)
+
+        # Atualiza a senha do usuário
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+
+        # Marca que o usuário não precisa mais trocar a senha
+        user.profile.require_password_change = False
+        user.profile.save(update_fields=['require_password_change'])
+
         return Response({'status': 'success', 'data': None})

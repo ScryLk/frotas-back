@@ -14,11 +14,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         user = self.user
+        # Verifica se o usuário precisa trocar a senha
+        require_password_change = getattr(user.profile, 'require_password_change', False) if hasattr(user, 'profile') else False
         return {
             'status': 'success',
             'data': {
                 'access': data['access'],
                 'refresh': data['refresh'],
+                'require_password_change': require_password_change,
                 'user': {
                     'id': user.id,
                     'username': user.get_username(),
@@ -211,3 +214,22 @@ class MeResponseSerializer(serializers.Serializer):
 class UserResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     data = UserPublicSerializer()
+
+
+class FirstAccessPasswordChangeSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, min_length=10)
+    confirm_password = serializers.CharField(write_only=True, min_length=10)
+
+    def validate(self, attrs):
+        new_password = attrs.get('new_password')
+        confirm_password = attrs.get('confirm_password')
+
+        if new_password != confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'As senhas não conferem.'})
+
+        # Valida a nova senha
+        user = self.context.get('user')
+        if user:
+            validate_password(new_password, user=user)
+
+        return attrs
