@@ -2,6 +2,7 @@ from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from django.http import JsonResponse
 
 
 def custom_exception_handler(exc, context):
@@ -37,3 +38,6 @@ class HealthView(APIView):
 
     def get(self, request):
         return Response({'status': 'success', 'data': {'health': 'ok'}})
+
+def health_view(_request):
+    return JsonResponse({"status": "ok"})

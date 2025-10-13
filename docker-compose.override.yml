@@ -1,0 +1,16 @@
+services:
+  app:
+    # Dev-friendly command with auto-reload and DB wait + migrate
+    command: >
+      sh -c "python scripts/wait_for_db.py &&
+             python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_DEBUG: "True"
+      # Ensure we don't waste resources in dev; runserver ignores Gunicorn anyway
+      WEB_CONCURRENCY: 1
+      GUNICORN_PRELOAD: "0"
+    volumes:
+      - .:/app
+      # Mask any host venv folder so it doesn't shadow container site-packages
+      - /app/venv

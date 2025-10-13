@@ -12,30 +12,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                # No-op: tabela já existe no banco (evita erro 1050 Table already exists)
+        migrations.CreateModel(
+            name='Localizacao',
+            fields=[
+                ('criado_em', models.DateTimeField(auto_now_add=True)),
+                ('atualizado_em', models.DateTimeField(auto_now=True)),
+                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
+                ('nome', models.CharField(max_length=160)),
+                ('endereco', models.CharField(blank=True, max_length=255, null=True)),
+                ('descricao', models.TextField(blank=True, null=True)),
+                ('latitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
+                ('longitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
             ],
-            state_operations=[
-                migrations.CreateModel(
-                    name='Localizacao',
-                    fields=[
-                        ('criado_em', models.DateTimeField(auto_now_add=True)),
-                        ('atualizado_em', models.DateTimeField(auto_now=True)),
-                        ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                        ('nome', models.CharField(max_length=160)),
-                        ('endereco', models.CharField(blank=True, max_length=255, null=True)),
-                        ('descricao', models.TextField(blank=True, null=True)),
-                        ('latitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                        ('longitude', models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True)),
-                    ],
-                    options={
-                        'verbose_name': 'Localização',
-                        'verbose_name_plural': 'Localizações',
-                        'ordering': ['nome'],
-                    },
-                ),
-            ],
+            options={
+                'verbose_name': 'Localização',
+                'verbose_name_plural': 'Localizações',
+                'ordering': ['nome'],
+            },
         ),
         migrations.AddField(
             model_name='viagem',

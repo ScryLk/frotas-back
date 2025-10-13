@@ -21,13 +21,24 @@ services:
     container_name: frotas-app
     depends_on:
       - db
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       # Sobrescreve host/porta para uso no Compose
       DB_HOST: db
       DB_PORT: 3306
-      DJANGO_ALLOWED_HOSTS: 0.0.0.0,localhost
+      # Use the value from .env if present, otherwise include frotas.pbi.local by default
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-0.0.0.0,localhost,frotas.pbi.local}
+      # Gunicorn tuning
+      WEB_CONCURRENCY: 4
+      GUNICORN_WORKER_CLASS: gthread
+      GUNICORN_THREADS: 4
+      GUNICORN_KEEP_ALIVE: 10
+      GUNICORN_GRACEFUL_TIMEOUT: 30
+      GUNICORN_MAX_REQUESTS: 1000
+      GUNICORN_MAX_REQUESTS_JITTER: 100
+      GUNICORN_PRELOAD: "1"
     ports:
       - "8000:8000"
     healthcheck:

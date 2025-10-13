@@ -3,6 +3,47 @@
 from django.db import migrations
 
 
+def ensure_motorista_table(apps, schema_editor):
+    connection = schema_editor.connection
+    introspection = connection.introspection
+    with connection.cursor() as cursor:
+        existing_tables = set(introspection.table_names())
+        usuario = 'frotas_usuario'
+        motorista = 'frotas_motorista'
+
+        usuario_exists = usuario in existing_tables
+        motorista_exists = motorista in existing_tables
+
+        # Caso 1: já existe apenas a tabela final -> nada a fazer (apenas estado)
+        if motorista_exists and not usuario_exists:
+            return
+
+        # Caso 2: existe apenas a tabela antiga -> renomeia normalmente
+        if usuario_exists and not motorista_exists:
+            cursor.execute(f"RENAME TABLE `{usuario}` TO `{motorista}`;")
+            return
+
+        # Caso 3: existem as duas tabelas (conflito). Mantemos 'frotas_usuario' como origem
+        # e substituímos 'frotas_motorista' pela renomeação. ATENÇÃO: pode descartar dados da tabela duplicada.
+        if usuario_exists and motorista_exists:
+            # Verifica se a duplicata tem linhas; se tiver, o ideal é consolidar dados manualmente.
+            cursor.execute(f"SELECT COUNT(*) FROM `{motorista}`;")
+            count_motorista = cursor.fetchone()[0]
+            if count_motorista and int(count_motorista) > 0:
+                # Preferimos não descartar dados automaticamente. Nesse cenário, apenas retornamos e
+                # deixamos o estado apontar para 'frotas_motorista'. O rename não será necessário.
+                # Opcional: você pode mesclar dados manualmente e remover a tabela antiga depois.
+                return
+            # Se vazia, podemos apagar e renomear com segurança
+            cursor.execute(f"DROP TABLE `{motorista}`;")
+            cursor.execute(f"RENAME TABLE `{usuario}` TO `{motorista}`;")
+
+
+def noop_reverse(apps, schema_editor):
+    # Não tentamos reverter automaticamente para evitar perda de dados.
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,8 +51,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterModelTable(
-            name='motorista',
-            table='frotas_motorista',
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(ensure_motorista_table, noop_reverse),
+            ],
+            state_operations=[
+                migrations.AlterModelTable(
+                    name='motorista',
+                    table='frotas_motorista',
+                ),
+            ],
         ),
     ]
