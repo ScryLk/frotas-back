@@ -38,6 +38,14 @@ class IsSuperUserOrReadOnly(permissions.BasePermission):
         return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
 
 
+class IsStaffOrSuperUserOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        u = request.user
+        return bool(u and u.is_authenticated and (u.is_staff or u.is_superuser))
+
+
 @extend_schema(tags=['Secretarias'])
 class SecretariaViewSet(viewsets.ModelViewSet):
     queryset = Secretaria.objects.all().order_by('nome')
@@ -95,7 +103,7 @@ class SecretariaViewSet(viewsets.ModelViewSet):
 class CarroViewSet(viewsets.ModelViewSet):
     queryset = Carro.objects.select_related('secretaria').all().order_by('placa')
     serializer_class = CarroSerializer
-    permission_classes = [IsSuperUserOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = {
         'ativo': ['exact'],
