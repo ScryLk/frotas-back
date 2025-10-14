@@ -82,8 +82,9 @@ class TokenRefreshView(BaseTokenRefreshView):
 
 
 class RegisterView(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []  # ignora Authorization header
+    # Agora exige autenticação e será restrito a superusuários no método
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = []  # ignora Authorization header em termos de documentação do Swagger (Bearer é controlado pelo DEFAULT_AUTH), manter vazio evita conflitos
 
     @extend_schema(
         summary='Cadastro de usuário',
@@ -93,6 +94,10 @@ class RegisterView(APIView):
         responses={201: RegisterResponseSerializer, 400: ErrorResponseSerializer},
     )
     def post(self, request):
+        # Somente superusuário pode criar usuários via /register/
+        if not request.user.is_superuser:
+            return Response({'status': 'error', 'message': 'Ação permitida apenas para superusuário.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = RegistrationSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
@@ -155,6 +160,23 @@ class UsersListView(APIView):
         data = UserPublicSerializer(users, many=True).data
         return Response({'status': 'success', 'data': data})
 
+    @extend_schema(
+        summary='Criar usuário (apenas super admin)',
+        tags=['Auth'],
+        request=UserAdminSerializer,
+        responses={201: 'authapi.serializers.UserResponseSerializer', 400: ErrorResponseSerializer, 401: ErrorResponseSerializer, 403: ErrorResponseSerializer},
+    )
+    def post(self, request):
+        # Restringe criação a superusuário
+        if not request.user.is_superuser:
+            return Response({'status': 'error', 'message': 'Ação permitida apenas para superusuário.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = UserAdminSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'status': 'error', 'message': 'Dados inválidos', 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        user = serializer.save()
+        return Response({'status': 'success', 'data': UserPublicSerializer(user).data}, status=status.HTTP_201_CREATED)
+
 
 class UsersAdminViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('username')
@@ -169,6 +191,9 @@ class UsersAdminViewSet(viewsets.ModelViewSet):
 
     @extend_schema(responses={201: 'authapi.serializers.UserResponseSerializer', 401: ErrorResponseSerializer, 403: ErrorResponseSerializer, 400: ErrorResponseSerializer})
     def create(self, request, *args, **kwargs):
+        # Restringe criação a superusuário
+        if not request.user.is_superuser:
+            return Response({'status': 'error', 'message': 'Ação permitida apenas para superusuário.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()

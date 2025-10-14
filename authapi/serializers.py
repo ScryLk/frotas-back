@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 from django.contrib.auth.password_validation import validate_password
+from django.conf import settings
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -55,7 +56,7 @@ class UserListResponseSerializer(serializers.Serializer):
 
 
 class UserAdminSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False, allow_blank=False, min_length=10)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=False, min_length=getattr(settings, 'PASSWORD_MIN_LENGTH', 8))
 
     class Meta:
         model = User
@@ -115,7 +116,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
 
 class PasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, min_length=10)
+    new_password = serializers.CharField(write_only=True, min_length=getattr(settings, 'PASSWORD_MIN_LENGTH', 8))
 
     def validate(self, attrs):
         user = self.context['user']
@@ -126,7 +127,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
 
 class PasswordSetSerializer(serializers.Serializer):
-    new_password = serializers.CharField(write_only=True, min_length=10)
+    new_password = serializers.CharField(write_only=True, min_length=getattr(settings, 'PASSWORD_MIN_LENGTH', 8))
 
     def validate_new_password(self, value):
         validate_password(value, user=self.context['user'])
@@ -134,7 +135,7 @@ class PasswordSetSerializer(serializers.Serializer):
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=10)
+    password = serializers.CharField(write_only=True, min_length=getattr(settings, 'PASSWORD_MIN_LENGTH', 8))
     password2 = serializers.CharField(write_only=True)
 
     class Meta:
@@ -217,8 +218,8 @@ class UserResponseSerializer(serializers.Serializer):
 
 
 class FirstAccessPasswordChangeSerializer(serializers.Serializer):
-    new_password = serializers.CharField(write_only=True, min_length=10)
-    confirm_password = serializers.CharField(write_only=True, min_length=10)
+    new_password = serializers.CharField(write_only=True, min_length=getattr(settings, 'PASSWORD_MIN_LENGTH', 8))
+    confirm_password = serializers.CharField(write_only=True, min_length=getattr(settings, 'PASSWORD_MIN_LENGTH', 8))
 
     def validate(self, attrs):
         new_password = attrs.get('new_password')
