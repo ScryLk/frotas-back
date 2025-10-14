@@ -35,10 +35,11 @@ class SecretariaSerializer(serializers.ModelSerializer):
 
 class CarroSerializer(serializers.ModelSerializer):
     odometro_atual = serializers.IntegerField(required=False, allow_null=True)
+    sem_placa = serializers.BooleanField(required=False, default=False)
 
     class Meta:
         model = Carro
-        fields = ['placa', 'modelo', 'secretaria', 'ano', 'ativo', 'odometro_atual', 'criado_em', 'atualizado_em']
+        fields = ['placa', 'sem_placa', 'modelo', 'secretaria', 'ano', 'ativo', 'odometro_atual', 'criado_em', 'atualizado_em']
         read_only_fields = ['criado_em', 'atualizado_em']
 
     def create(self, validated_data):
@@ -62,6 +63,19 @@ class CarroSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError('Deve ser um número inteiro >= 0')
         return value
+
+    def validate(self, attrs):
+        if attrs.get('sem_placa'):
+            # se sem_placa, tornar placa opcional (gera placeholder se vazio)
+            placa = attrs.get('placa') or ''
+            if not placa:
+                # gera identificador temporário (cliente pode editar depois)
+                import uuid
+                attrs['placa'] = f"TMP-{uuid.uuid4().hex[:6].upper()}"
+        else:
+            if not attrs.get('placa'):
+                raise serializers.ValidationError({'placa': 'Obrigatória quando sem_placa=False.'})
+        return attrs
 
 
 class ViagemSerializer(serializers.ModelSerializer):

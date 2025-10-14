@@ -25,12 +25,13 @@ class Secretaria(TimeStampedModel):
 
 
 class Carro(TimeStampedModel):
-    placa = models.CharField(primary_key=True, max_length=10)
+    placa = models.CharField(primary_key=True, max_length=10, blank=True)  # agora pode ficar em branco e será gerado se sem_placa
     modelo = models.CharField(max_length=120)
     secretaria = models.ForeignKey(Secretaria, on_delete=models.PROTECT, related_name='carros')
     ano = models.PositiveIntegerField(blank=True, null=True)
     ativo = models.BooleanField(default=True)
     odometro_atual = models.PositiveIntegerField(null=True, blank=True, default=None)
+    sem_placa = models.BooleanField(default=False, help_text='Marque quando o veículo não possuir placa (gera identificador interno).')
 
     class Meta:
         verbose_name = 'Carro'
