@@ -208,6 +208,10 @@ class UsersAdminViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        # Somente superusuário pode alterar campos de permissão
+        sensitive_keys = {'is_staff', 'is_superuser'}
+        if any(k in request.data for k in sensitive_keys) and not request.user.is_superuser:
+            return Response({'status': 'error', 'message': 'Apenas superusuário pode alterar permissões (is_staff/is_superuser).'}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()

@@ -103,6 +103,9 @@ DATABASES = {
 # Password policy config
 # Minimum password length can be configured via env PASSWORD_MIN_LENGTH; default to 8
 PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', '8'))
+# Similarity threshold for UserAttributeSimilarityValidator (0 < x < 1). Higher value is more permissive.
+# Default to 0.9 to allow passwords that are only slightly similar (ex.: prefix/suffix differences)
+PASSWORD_MAX_SIMILARITY = float(os.getenv('PASSWORD_MAX_SIMILARITY', '0.9'))
 
 
 # Password validation
@@ -111,6 +114,9 @@ PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', '8'))
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'OPTIONS': {
+            'max_similarity': PASSWORD_MAX_SIMILARITY,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
