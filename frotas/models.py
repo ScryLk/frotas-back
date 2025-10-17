@@ -32,6 +32,7 @@ class Carro(TimeStampedModel):
     ativo = models.BooleanField(default=True)
     odometro_atual = models.PositiveIntegerField(null=True, blank=True, default=None)
     sem_placa = models.BooleanField(default=False, help_text='Marque quando o veículo não possuir placa (gera identificador interno).')
+    tem_odometro = models.BooleanField(default=True, help_text='Marque se o veículo possui odômetro.')
 
     class Meta:
         verbose_name = 'Carro'
@@ -86,7 +87,7 @@ class Viagem(TimeStampedModel):
     # Nova relação opcional com Localizacao pré-cadastrada
     localizacao = models.ForeignKey('Localizacao', on_delete=models.PROTECT, related_name='viagens', blank=True, null=True)
     data_saida = models.DateTimeField()
-    odometro_saida = models.PositiveIntegerField()
+    odometro_saida = models.PositiveIntegerField(blank=True, null=True)
     data_chegada = models.DateTimeField(blank=True, null=True)
     odometro_chegada = models.PositiveIntegerField(blank=True, null=True)
     destino = models.CharField(max_length=160)
@@ -113,6 +114,9 @@ class Viagem(TimeStampedModel):
         # Atualiza odômetro do carro ao salvar viagem (tratando nulos como 0 para baseline)
         try:
             carro = self.carro
+            if hasattr(carro, 'tem_odometro') and not carro.tem_odometro:
+                # Veículo sem odômetro, ignora atualização
+                return
             target = self.odometro_chegada or self.odometro_saida
             baseline = carro.odometro_atual or 0
             if target is not None and target > baseline:

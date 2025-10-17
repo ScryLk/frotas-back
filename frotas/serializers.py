@@ -36,10 +36,11 @@ class SecretariaSerializer(serializers.ModelSerializer):
 class CarroSerializer(serializers.ModelSerializer):
     odometro_atual = serializers.IntegerField(required=False, allow_null=True)
     sem_placa = serializers.BooleanField(required=False, default=False)
+    tem_odometro = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = Carro
-        fields = ['placa', 'sem_placa', 'modelo', 'secretaria', 'ano', 'ativo', 'odometro_atual', 'criado_em', 'atualizado_em']
+        fields = ['placa', 'sem_placa', 'tem_odometro', 'modelo', 'secretaria', 'ano', 'ativo', 'odometro_atual', 'criado_em', 'atualizado_em']
         read_only_fields = ['criado_em', 'atualizado_em']
 
     def create(self, validated_data):
@@ -89,8 +90,27 @@ class ViagemSerializer(serializers.ModelSerializer):
             'criado_em', 'atualizado_em'
         ]
         read_only_fields = ['id', 'criado_em', 'atualizado_em']
+        extra_kwargs = {
+            'odometro_saida': {'required': False, 'allow_null': True},
+            'odometro_chegada': {'required': False, 'allow_null': True},
+        }
 
     def validate(self, attrs):
+        carro = attrs.get('carro', getattr(self.instance, 'carro', None))
+
+        # Se o carro não tem odômetro ou está sem placa, não valida odômetro
+        if carro and hasattr(carro, 'tem_odometro') and not carro.tem_odometro:
+            return attrs
+        if carro and hasattr(carro, 'sem_placa') and carro.sem_placa:
+            return attrs
+
+        # Se está criando uma nova viagem e o carro TEM odômetro, odometro_saida é obrigatório
+        if self.instance is None:  # Criando nova viagem
+            odo_s = attrs.get('odometro_saida')
+            if odo_s is None:
+                raise serializers.ValidationError({
+                    'odometro_saida': 'Este campo é obrigatório para carros com odômetro.'
+                })
         data_saida = attrs.get('data_saida', getattr(self.instance, 'data_saida', None))
         data_chegada = attrs.get('data_chegada', getattr(self.instance, 'data_chegada', None))
         odo_s = attrs.get('odometro_saida', getattr(self.instance, 'odometro_saida', None))
