@@ -223,11 +223,22 @@ class LocalizacaoListResponseSerializer(serializers.Serializer):
 
 
 # Relatórios / Analytics
+class ViagemCountDataSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+
+
+class ViagemCountResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagemCountDataSerializer()
+
+
 class ViagensTotaisDataSerializer(serializers.Serializer):
     total = serializers.IntegerField()
     em_andamento = serializers.IntegerField()
     concluida = serializers.IntegerField()
     cancelada = serializers.IntegerField()
+    km_total = serializers.IntegerField()
+    duracao_media_min = serializers.IntegerField()
 
 
 class ViagensTotaisResponseSerializer(serializers.Serializer):
@@ -264,3 +275,14 @@ class ViagensTopDestinosItemSerializer(serializers.Serializer):
 class ViagensTopDestinosResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     data = ViagensTopDestinosItemSerializer(many=True)
+
+
+class ViagensTopCarrosKmItemSerializer(serializers.Serializer):
+    placa = serializers.CharField()
+    modelo = serializers.CharField()
+    total_km = serializers.IntegerField()
+
+
+class ViagensTopCarrosKmResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagensTopCarrosKmItemSerializer(many=True)

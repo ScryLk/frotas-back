@@ -257,18 +257,107 @@ class ViagemViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
 
+    @extend_schema(summary='Contagem de viagens', description='Conta viagens filtradas por parâmetros (secretaria, placa, status, data_ini, data_fim)', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagemCountResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='count', permission_classes=[permissions.IsAuthenticated])
+    def count_viagens(self, request):
+        qs = self.get_queryset()
+
+        # Aplica filtros da query string
+        secretaria = request.query_params.get('secretaria')
+        if secretaria:
+            qs = qs.filter(secretaria__id=secretaria)
+
+        placa = request.query_params.get('placa')
+        if placa:
+            qs = qs.filter(carro__placa__icontains=placa)
+
+        viagem_status = request.query_params.get('status')
+        if viagem_status:
+            qs = qs.filter(status=viagem_status)
+
+        data_ini = request.query_params.get('data_ini')
+        if data_ini:
+            try:
+                from datetime import datetime
+                from django.utils.dateparse import parse_date
+                dt_ini = None
+                try:
+                    dt_ini = datetime.fromisoformat(data_ini)
+                except Exception:
+                    d = parse_date(data_ini)
+                    if d:
+                        dt_ini = datetime.combine(d, datetime.min.time())
+                if dt_ini:
+                    qs = qs.filter(data_saida__gte=dt_ini)
+            except Exception:
+                pass
+
+        data_fim = request.query_params.get('data_fim')
+        if data_fim:
+            try:
+                from datetime import datetime
+                from django.utils.dateparse import parse_date
+                dt_fim = None
+                try:
+                    dt_fim = datetime.fromisoformat(data_fim)
+                except Exception:
+                    d = parse_date(data_fim)
+                    if d:
+                        dt_fim = datetime.combine(d, datetime.max.time())
+                if dt_fim:
+                    qs = qs.filter(data_saida__lte=dt_fim)
+            except Exception:
+                pass
+
+        count = qs.count()
+
+        return Response({
+            'status': 'success',
+            'data': {
+                'count': count
+            }
+        })
+
     @extend_schema(summary='Totais de viagens', description='Se data_ini/data_fim não forem informados, considera todo o período (dados de todo o sistema).', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTotaisResponseSerializer'})
     @action(detail=False, methods=['get'], url_path='totais', permission_classes=[permissions.IsAuthenticated])
     def totais(self, request):
         qs = self._period_filter(self.get_queryset(), request)
         total = qs.count()
-        by_status_rows = qs.values('status').annotate(c=Count('id'))
+        # Limpar order_by para evitar que quebre o GROUP BY da agregação
+        by_status_rows = qs.order_by().values('status').annotate(c=Count('id'))
         by_status = {row['status']: row['c'] for row in by_status_rows}
+
+        # Calcular km_total (soma de odometro_chegada - odometro_saida)
+        km_total = 0
+        for v in qs.exclude(odometro_chegada__isnull=True).select_related('secretaria'):
+            delta = max(0, (v.odometro_chegada or 0) - (v.odometro_saida or 0))
+            km_total += delta
+
+        # Calcular duracao_media_min (média de duração em minutos para viagens concluídas)
+        duracao_media_min = 0
+        viagens_concluidas = qs.filter(
+            status=Viagem.Status.CONCLUIDA,
+            data_saida__isnull=False,
+            data_chegada__isnull=False
+        )
+        if viagens_concluidas.exists():
+            total_minutos = 0
+            count = 0
+            for v in viagens_concluidas:
+                delta = v.data_chegada - v.data_saida
+                minutos = delta.total_seconds() / 60
+                total_minutos += minutos
+                count += 1
+            if count > 0:
+                duracao_media_min = round(total_minutos / count)
+
         data = {
             'total': total,
             'em_andamento': by_status.get(Viagem.Status.EM_ANDAMENTO, 0),
             'concluida': by_status.get(Viagem.Status.CONCLUIDA, 0),
             'cancelada': by_status.get(Viagem.Status.CANCELADA, 0),
+            'km_total': km_total,
+            'duracao_media_min': duracao_media_min,
         }
         return Response({'status': 'success', 'data': data})
 
@@ -331,6 +420,34 @@ class ViagemViewSet(viewsets.ModelViewSet):
             if len(items) >= limit:
                 break
         return Response({'status': 'success', 'data': items})
+
+    @extend_schema(summary='Top carros por KM rodados', description='Retorna o ranking de carros que mais rodaram KM. Se data_ini/data_fim não forem informados, considera todo o período. Parâmetro limit é opcional (padrão: 10).', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagensTopCarrosKmResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='top_carros_km', permission_classes=[permissions.IsAuthenticated])
+    def top_carros_km(self, request):
+        qs = self._period_filter(self.get_queryset(), request)
+        limit_raw = request.query_params.get('limit')
+        try:
+            limit = int(limit_raw) if limit_raw not in (None, '', 'null', 'None') else 10
+        except Exception:
+            limit = 10
+        limit = max(1, min(limit, 100))
+
+        # Calcular km por carro (placa)
+        totals = {}
+        for v in qs.exclude(odometro_chegada__isnull=True).select_related('carro'):
+            delta = max(0, (v.odometro_chegada or 0) - (v.odometro_saida or 0))
+            placa = v.carro.placa
+            if placa not in totals:
+                totals[placa] = {
+                    'placa': placa,
+                    'modelo': v.carro.modelo,
+                    'total_km': 0
+                }
+            totals[placa]['total_km'] += delta
+
+        # Ordenar por total_km decrescente e limitar
+        data = sorted(totals.values(), key=lambda x: x['total_km'], reverse=True)[:limit]
+        return Response({'status': 'success', 'data': data})
 
 
 @extend_schema(tags=['Motoristas'])
@@ -446,7 +563,8 @@ class RelatoriosViewSet(viewsets.ViewSet):
     def list(self, request):
         qs = self._qs(request)
         total = qs.count()
-        by_status_rows = qs.values('status').annotate(c=Count('id'))
+        # Limpar order_by para evitar que quebre o GROUP BY da agregação
+        by_status_rows = qs.order_by().values('status').annotate(c=Count('id'))
         by_status = {row['status']: row['c'] for row in by_status_rows}
         data = {
             'total': total,
@@ -461,7 +579,8 @@ class RelatoriosViewSet(viewsets.ViewSet):
     def totais(self, request):
         qs = self._qs(request)
         total = qs.count()
-        by_status_rows = qs.values('status').annotate(c=Count('id'))
+        # Limpar order_by para evitar que quebre o GROUP BY da agregação
+        by_status_rows = qs.order_by().values('status').annotate(c=Count('id'))
         by_status = {row['status']: row['c'] for row in by_status_rows}
         data = {
             'total': total,
