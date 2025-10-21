@@ -449,6 +449,51 @@ class ViagemViewSet(viewsets.ModelViewSet):
         data = sorted(totals.values(), key=lambda x: x['total_km'], reverse=True)[:limit]
         return Response({'status': 'success', 'data': data})
 
+    @extend_schema(summary='KM por dia de um veículo', description='Retorna a quilometragem rodada por dia para um veículo específico. Parâmetros: placa (obrigatório), data_ini e data_fim (opcionais).', tags=['Relatórios'], responses={200: 'frotas.serializers.ViagemKmPorDiaResponseSerializer'})
+    @action(detail=False, methods=['get'], url_path='km_por_dia', permission_classes=[permissions.IsAuthenticated])
+    def km_por_dia(self, request):
+        # Placa é obrigatória
+        placa = request.query_params.get('placa')
+        if not placa:
+            return Response({
+                'status': 'error',
+                'message': 'Parâmetro "placa" é obrigatório',
+                'errors': {'placa': ['Este campo é obrigatório']}
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Filtrar viagens pelo carro
+        qs = self.get_queryset().filter(carro__placa=placa)
+
+        # Aplicar filtro de período se fornecido
+        qs = self._period_filter(qs, request)
+
+        # Agrupar por data e calcular KM
+        from collections import defaultdict
+        km_por_data = defaultdict(lambda: {'total_km': 0, 'total_viagens': 0})
+
+        for v in qs.exclude(odometro_chegada__isnull=True).order_by('data_saida'):
+            # Calcular KM da viagem
+            delta_km = max(0, (v.odometro_chegada or 0) - (v.odometro_saida or 0))
+
+            # Usar a data de saída como referência
+            data_viagem = v.data_saida.date()
+
+            km_por_data[data_viagem]['total_km'] += delta_km
+            km_por_data[data_viagem]['total_viagens'] += 1
+
+        # Converter para lista e ordenar por data
+        data = [
+            {
+                'data': data_obj,
+                'total_km': valores['total_km'],
+                'total_viagens': valores['total_viagens']
+            }
+            for data_obj, valores in km_por_data.items()
+        ]
+        data.sort(key=lambda x: x['data'])
+
+        return Response({'status': 'success', 'data': data})
+
 
 @extend_schema(tags=['Motoristas'])
 class MotoristaViewSet(viewsets.ModelViewSet):

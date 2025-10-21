@@ -135,7 +135,8 @@ class ViagemSerializer(serializers.ModelSerializer):
         errors = {}
 
         # validação de odômetros
-        if odo_s is not None and odo_s < baseline:
+        # ✅ Só valida odometro_saida se ele está sendo enviado no request (não apenas se existe na instância)
+        if 'odometro_saida' in attrs and odo_s is not None and odo_s < baseline:
             errors['odometro_saida'] = [f'Deve ser maior ou igual ao último odômetro registrado do carro ({baseline}).']
 
         if odo_c is not None:
@@ -286,3 +287,14 @@ class ViagensTopCarrosKmItemSerializer(serializers.Serializer):
 class ViagensTopCarrosKmResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     data = ViagensTopCarrosKmItemSerializer(many=True)
+
+
+class ViagemKmPorDiaItemSerializer(serializers.Serializer):
+    data = serializers.DateField()
+    total_km = serializers.IntegerField()
+    total_viagens = serializers.IntegerField()
+
+
+class ViagemKmPorDiaResponseSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    data = ViagemKmPorDiaItemSerializer(many=True)
