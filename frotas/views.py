@@ -29,6 +29,7 @@ from django.db.models.functions import TruncDate
 from django.utils.dateparse import parse_date
 from datetime import datetime, timedelta
 from rest_framework.permissions import DjangoModelPermissionsOrAnonReadOnly
+from django.utils import timezone
 
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
@@ -160,6 +161,40 @@ class CarroViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({'status': 'success', 'data': None}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], url_path='km-por-periodo')
+    def km_por_periodo(self, request, pk=None):
+        """
+        Retorna a quilometragem rodada pelo carro em um intervalo de datas.
+        Parâmetros: data_ini, data_fim (YYYY-MM-DD)
+        """
+        carro = self.get_object()
+        data_ini = request.query_params.get('data_ini')
+        data_fim = request.query_params.get('data_fim')
+        qs = carro.viagens.exclude(odometro_chegada__isnull=True)
+        if data_ini:
+            qs = qs.filter(data_saida__date__gte=data_ini)
+        if data_fim:
+            qs = qs.filter(data_saida__date__lte=data_fim)
+        total_km = 0
+        for v in qs:
+            if v.odometro_chegada is not None and v.odometro_saida is not None:
+                total_km += max(0, v.odometro_chegada - v.odometro_saida)
+        return Response({'status': 'success', 'data': {'placa': carro.placa, 'total_km': total_km}})
+
+    @action(detail=True, methods=['get'], url_path='km-hoje')
+    def km_hoje(self, request, pk=None):
+        """
+        Retorna a quilometragem rodada pelo carro no dia atual.
+        """
+        carro = self.get_object()
+        hoje = timezone.localdate()
+        qs = carro.viagens.exclude(odometro_chegada__isnull=True).filter(data_saida__date=hoje)
+        total_km = 0
+        for v in qs:
+            if v.odometro_chegada is not None and v.odometro_saida is not None:
+                total_km += max(0, v.odometro_chegada - v.odometro_saida)
+        return Response({'status': 'success', 'data': {'placa': carro.placa, 'data': str(hoje), 'total_km': total_km}})
 
 
 @extend_schema(tags=['Viagens'])

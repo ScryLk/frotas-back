@@ -135,12 +135,14 @@ class ViagemSerializer(serializers.ModelSerializer):
         errors = {}
 
         # validação de odômetros
-        # ✅ Só valida odometro_saida se ele está sendo enviado no request (não apenas se existe na instância)
-        if 'odometro_saida' in attrs and odo_s is not None and odo_s < baseline:
-            errors['odometro_saida'] = [f'Deve ser maior ou igual ao último odômetro registrado do carro ({baseline}).']
+        # ✅ Só valida baseline do odometro_saida na CRIAÇÃO, não na edição
+        if 'odometro_saida' in attrs and odo_s is not None:
+            # Se está criando (instance é None), valida baseline
+            if self.instance is None and odo_s < baseline:
+                errors['odometro_saida'] = [f'Deve ser maior ou igual ao último odômetro registrado do carro ({baseline}).']
 
         if odo_c is not None:
-            # já há verificação geral abaixo, mas reforçamos baseline também para chegada
+            # Validação: odometro_chegada deve ser >= odometro_saida
             if odo_s is None:
                 # considerar odometro_saida atual da instância para PATCH parcial
                 ref_saida = getattr(self.instance, 'odometro_saida', None)
@@ -148,7 +150,9 @@ class ViagemSerializer(serializers.ModelSerializer):
                 ref_saida = odo_s
             if ref_saida is not None and odo_c < ref_saida:
                 errors['odometro_chegada'] = ['Deve ser maior ou igual ao odômetro de saída.']
-            if odo_c < baseline:
+
+            # ✅ Só valida baseline do odometro_chegada na CRIAÇÃO, não na edição
+            if self.instance is None and odo_c < baseline:
                 errors.setdefault('odometro_chegada', []).append(f'Deve ser maior ou igual ao último odômetro registrado do carro ({baseline}).')
 
         if errors:
