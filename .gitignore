@@ -6,6 +6,10 @@ __pycache__/
 # Envs
 .env
 .env.*
+!.env.example
+
+# Virtual environments
+venv/
 
 # OS / IDE
 .DS_Store

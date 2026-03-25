@@ -10,7 +10,7 @@ services:
     ]
     environment:
       MYSQL_DATABASE: ${DB_NAME:-frotas}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-change-me}
     ports:
       - "3307:3306"
     volumes:

@@ -10,8 +10,8 @@ except Exception as e:
 
 HOST = os.getenv("DB_HOST", "127.0.0.1")
 PORT = int(os.getenv("DB_PORT", "3306"))
-USER = os.getenv("DB_USER", "root")
-PASSWORD = os.getenv("DB_PASSWORD", "root")
+USER = os.getenv("DB_USER", "change-me")
+PASSWORD = os.getenv("DB_PASSWORD", "change-me")
 DBNAME = os.getenv("DB_NAME", "frotas")
 TIMEOUT = int(os.getenv("DB_WAIT_TIMEOUT", "60"))
 
